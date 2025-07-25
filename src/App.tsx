@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Progress } from "@/components/ui/progress";
 import { Button } from "./components/ui/button";
+import Users from "./pages/users";
 
 export default function App() {
   const [progress, setProgress] = React.useState(13);
@@ -21,6 +22,7 @@ export default function App() {
       <Button variant={"destructive"}>Click to Cancel</Button>
       <h2>Progress Bar</h2>
       <Progress value={progress} className="w-[60%]" />
+      <Users />
     </>
   );
 }
