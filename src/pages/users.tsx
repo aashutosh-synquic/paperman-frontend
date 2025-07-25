@@ -13,6 +13,7 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { Table as ReactTableType } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -158,7 +159,7 @@ const columns: ColumnDef<User>[] = [
 
 // Pagination Component
 interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+  table: ReactTableType<TData>;
 }
 
 function DataTablePagination<TData>({
