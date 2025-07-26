@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-table";
 import type { Table as ReactTableType } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
+import { auth } from "../../firebaseConfig";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,12 @@ interface User {
 
 // Fetch users from the API
 async function getUsers(): Promise<User[]> {
-  const resp = await fetch("http://localhost:5000/api/users");
+  const token = await auth.currentUser?.getIdToken();
+  const resp = await fetch("http://localhost:5000/api/users", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   return resp.json();
 }
 
