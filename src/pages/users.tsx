@@ -253,6 +253,7 @@ function Users() {
     data = [],
     isLoading,
     error,
+    refetch,
   } = useQuery({ queryKey: ["users"], queryFn: getUsers });
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -297,6 +298,7 @@ function Users() {
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
+        <Button onClick={() => refetch()}>Refetch data</Button>
       </div>
       <div className="overflow-hidden rounded-md border p-8">
         <Table>

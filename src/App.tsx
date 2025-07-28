@@ -1,32 +1,48 @@
-"use client";
+import { createBrowserRouter, RouterProvider } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+//
+import { AuthProvider } from "./providers/AuthProvider";
+//
+import ProtectedRoute from "./components/ProtectedRoute";
+//
+import LoginPage from "./pages/LoginPage";
+import Dashboard from "./pages/DashboardPage";
+import PublicPage from "./pages/PublicPage";
+import LogoutPage from "./pages/LogoutPage";
 
-import * as React from "react";
+const router = createBrowserRouter([
+  {
+    path: "/",
+    Component: () => <PublicPage />,
+  },
+  {
+    path: "/login",
+    Component: () => <LoginPage />,
+  },
+  {
+    path: "/logout",
+    Component: () => <LogoutPage />,
+  },
+  {
+    path: "/dashboard",
+    Component: () => (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
+]);
 
-import { Progress } from "@/components/ui/progress";
-import { Button } from "./components/ui/button";
-import Users from "./pages/users";
-import AuthPage from "./pages/authpage";
+const queryClient = new QueryClient();
 
-export default function App() {
-  const [progress, setProgress] = React.useState(13);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => setProgress(66), 500);
-    return () => clearTimeout(timer);
-  }, []);
-
+function App() {
   return (
-    <>
-      <h1>Test</h1>
-      <Button variant={"default"}>Click Me</Button>
-      <br />
-      <Button variant={"destructive"}>Click to Cancel</Button>
-      <br />
-      <AuthPage />
-      <br />
-      <h2>Progress Bar</h2>
-      <Progress value={progress} className="w-[60%]" />
-      <Users />
-    </>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
+
+export default App;
