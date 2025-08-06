@@ -8,7 +8,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading...</div>
+      </div>
+    );
   }
 
   if (!user) {

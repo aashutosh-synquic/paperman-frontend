@@ -1,17 +1,14 @@
-import React from "react";
-import { useAuth } from "../hooks/useAuth";
-import Users from "./users";
+"use client";
 
-const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
-
+export default function DashboardPage() {
   return (
-    <div>
-      <h1>Welcome to the Dashboard, {user?.email}</h1>
-      <br />
-      <Users />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome to your admin dashboard. Here's an overview of your business.
+        </p>
+      </div>
     </div>
   );
-};
-
-export default DashboardPage;
+}
