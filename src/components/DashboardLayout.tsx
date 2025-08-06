@@ -18,6 +18,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { useTranslation } from "react-i18next";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
+  const { t } = useTranslation();
 
   const getBreadcrumbTitle = () => {
     const path = location.pathname.slice(1);
@@ -42,14 +44,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
                 <BreadcrumbLink asChild>
-                  <Link to="/dashboard">Admin Dashboard</Link>
+                  <Link to="/dashboard">{t("Admin Dashboard")}</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               {location.pathname !== "/dashboard" && (
                 <>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>{getBreadcrumbTitle()}</BreadcrumbPage>
+                    <BreadcrumbPage>{t(getBreadcrumbTitle())}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </>
               )}
