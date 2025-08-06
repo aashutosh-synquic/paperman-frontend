@@ -59,8 +59,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import ParseDate from "@/utils/parseDate.ts";
+import { useTranslation } from "react-i18next";
 
 function CategoryPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -199,7 +201,7 @@ function CategoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Name
+          {t("Name")}
         </Button>
       ),
       cell: ({ row }) => (
@@ -213,7 +215,7 @@ function CategoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Description
+          {t("Description")}
         </Button>
       ),
       cell: ({ row }) => row.original.description,
@@ -225,14 +227,14 @@ function CategoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Created At
+          {t("Created At")}
         </Button>
       ),
       cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
     },
     {
       id: "actions",
-      header: () => <span className="text-right">Actions</span>,
+      header: () => <span className="text-right">{t("Actions")}</span>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button
@@ -289,21 +291,23 @@ function CategoryPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("Categories")}
+          </h1>
           <p className="text-muted-foreground">
-            Manage your product categories
+            {t("Manage your product categories")}
           </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add New Category
+          {t("Add New Category")}
         </Button>
       </div>
 
       {/* Global Search */}
       <div className="flex items-center py-4">
         <Input
-          placeholder="Search categories..."
+          placeholder={t("Search categories...")}
           value={globalFilter ?? ""}
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"

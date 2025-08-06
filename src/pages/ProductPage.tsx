@@ -59,8 +59,10 @@ import {
 } from "../services/product";
 import { Category, getCategories } from "../services/category";
 import ParseDate from "@/utils/parseDate.ts";
+import { useTranslation } from "react-i18next";
 
 function ProductPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -260,7 +262,7 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Name
+          {t("Name")}
         </Button>
       ),
       cell: ({ row }) => row.original.name,
@@ -272,7 +274,7 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Category
+          {t("Category")}
         </Button>
       ),
       cell: ({ row }) => row.original.category,
@@ -284,7 +286,7 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Type
+          {t("Type")}
         </Button>
       ),
       cell: ({ row }) => row.original.type,
@@ -320,7 +322,7 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Quantity
+          {t("Quantity")}
         </Button>
       ),
       cell: ({ row }) => row.original.quantity,
@@ -332,7 +334,7 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Price
+          {t("Price")}
         </Button>
       ),
       cell: ({ row }) => row.original.price,
@@ -344,14 +346,14 @@ function ProductPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Created At
+          {t("Created At")}
         </Button>
       ),
       cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
     },
     {
       id: "actions",
-      header: () => <span className="text-right">Actions</span>,
+      header: () => <span className="text-right">{t("Actions")}</span>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button
@@ -408,12 +410,12 @@ function ProductPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground">Manage your product catalog</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("Products")}</h1>
+          <p className="text-muted-foreground">{t("Manage your product catalog")}</p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add New Product
+          {t("Add New Product")}
         </Button>
       </div>
 

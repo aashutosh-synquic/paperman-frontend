@@ -59,8 +59,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import ParseDate from "@/utils/parseDate.ts";
+import { useTranslation } from "react-i18next";
 
 function InventoryPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -189,7 +191,7 @@ function InventoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Product
+          {t("Product")}
         </Button>
       ),
       cell: ({ row }) =>
@@ -204,7 +206,7 @@ function InventoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Quantity
+          {t("Quantity")}
         </Button>
       ),
       cell: ({ row }) => row.original.quantity,
@@ -217,7 +219,7 @@ function InventoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Date
+          {t("Created At")}
         </Button>
       ),
       cell: ({ row }) => <span>{ParseDate(row.original.date)}</span>,
@@ -230,7 +232,7 @@ function InventoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Remarks
+          {t("Remarks")}
         </Button>
       ),
       cell: ({ row }) => row.original.remarks,
@@ -243,7 +245,7 @@ function InventoryPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Status
+          {t("Status")}
         </Button>
       ),
       cell: ({ row }) => row.original.status,
@@ -251,7 +253,7 @@ function InventoryPage() {
     },
     {
       id: "actions",
-      header: () => <span className="text-right">Actions</span>,
+      header: () => <span className="text-right">{t("Actions")}</span>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button
@@ -306,14 +308,16 @@ function InventoryPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("Inventory")}
+          </h1>
           <p className="text-muted-foreground">
-            Track and manage your stock levels
+            {t("Track and manage your stock levels")}
           </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Inventory Item
+          {t("Add Inventory Item")}
         </Button>
       </div>
 
