@@ -56,8 +56,8 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-} from "../services/product";
-import { Category, getCategories } from "../services/category";
+} from "../../services/product";
+import { Category, getCategories } from "../../services/category";
 import ParseDate from "@/utils/parseDate.ts";
 import { useTranslation } from "react-i18next";
 
@@ -411,7 +411,9 @@ function ProductPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t("Products")}</h1>
-          <p className="text-muted-foreground">{t("Manage your product catalog")}</p>
+          <p className="text-muted-foreground">
+            {t("Manage your product catalog")}
+          </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

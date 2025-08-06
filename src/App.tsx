@@ -1,13 +1,7 @@
-import {
-  createBrowserRouter,
-  RouterProvider,
-  Outlet,
-  Navigate,
-} from "react-router";
+import { createBrowserRouter, RouterProvider, Outlet } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 //
 import { AuthProvider } from "./providers/AuthProvider";
-import { useAuth } from "./hooks/useAuth";
 import "./lib/i18n";
 //
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -17,28 +11,23 @@ import NotFoundComponent from "./components/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
 import LogoutPage from "./pages/auth/LogoutPage";
 //
-import DashboardPage from "./pages/DashboardPage";
-import CategoryPage from "./pages/CategoryPage";
-import ProductsPage from "./pages/ProductPage";
-import InventoryPage from "./pages/InventoryPage";
+import DashboardPage from "./pages/dashboard/DashboardPage";
+import CategoryPage from "./pages/dashboard/CategoryPage";
+import ProductsPage from "./pages/dashboard/ProductPage";
+import InventoryPage from "./pages/dashboard/InventoryPage";
 // import CustomersPage from "./pages/CustomerPage";
 import DashboardLayout from "./components/DashboardLayout";
-
-// redirects to /dashboard if authenticated, else /login
-function RootRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  return user ? (
-    <Navigate to="/dashboard" replace />
-  ) : (
-    <Navigate to="/login" replace />
-  );
-}
+import LandingPage from "./pages/LandingPage";
+import StockPage from "./pages/StockPage";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    Component: RootRedirect,
+    Component: () => <LandingPage />,
+  },
+  {
+    path: "/stock",
+    Component: () => <StockPage />,
   },
   // 404 not found
   {

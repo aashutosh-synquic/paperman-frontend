@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Inventory,
+  getInventories,
+  createInventory,
+  updateInventory,
+  deleteInventory,
+} from "../../services/inventory";
+import { getProducts, Product } from "../../services/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,41 +58,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Category,
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "../services/category";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import ParseDate from "@/utils/parseDate.ts";
 import { useTranslation } from "react-i18next";
 
-function CategoryPage() {
+function InventoryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
-    null
-  );
-  const [formData, setFormData] = useState<{
-    name: string;
-    description: string;
-  }>({ name: "", description: "" });
-  const [errors, setErrors] = useState<{ name?: string; description?: string }>(
-    {}
-  );
+  const [editingItem, setEditingItem] = useState<Inventory | null>(null);
+  const [deletingItem, setDeletingItem] = useState<Inventory | null>(null);
+  const [form, setForm] = useState<Partial<Inventory>>({
+    productId: "",
+    quantity: 0,
+    date: "",
+    remarks: "",
+    status: "active",
+  });
+  const [errors, setErrors] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -85,143 +83,137 @@ function CategoryPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const {
-    data: categories = [],
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useQuery({
+    queryKey: ["products"],
+    queryFn: getProducts,
+  });
+
+  const {
+    data: inventories = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
+    queryKey: ["inventories"],
+    queryFn: getInventories,
   });
 
   const createMutation = useMutation({
-    mutationFn: createCategory,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category created successfully" });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create category",
-        variant: "destructive",
-      });
-    },
+    mutationFn: createInventory,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ _id, ...data }: Category) => updateCategory(_id!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category updated successfully" });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update category",
-        variant: "destructive",
-      });
-    },
+    mutationFn: (payload: any) => updateInventory(payload._id, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteCategory(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category deleted successfully" });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete category",
-        variant: "destructive",
-      });
-    },
+    mutationFn: (_id: string) => deleteInventory(_id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
   });
 
-  const validateForm = (): boolean => {
-    const newErrors: { name?: string; description?: string } = {};
-    if (!formData.name.trim()) newErrors.name = "Name is required";
-    if (!formData.description.trim())
-      newErrors.description = "Description is required";
+  const isFormValid =
+    form.productId &&
+    form.quantity &&
+    form.date &&
+    form.status &&
+    !isNaN(Number(form.quantity)) &&
+    Object.keys(errors).length === 0;
+
+  const validateForm = () => {
+    const newErrors: any = {};
+    if (!form.productId) newErrors.productId = "Product is required";
+    if (
+      !form.quantity ||
+      isNaN(Number(form.quantity)) ||
+      Number(form.quantity) < 0
+    )
+      newErrors.quantity = "Quantity must be a valid non-negative number";
+    if (!form.date) newErrors.date = "Date is required";
+    if (!form.status) newErrors.status = "Status is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!validateForm()) return;
     setSubmitting(true);
-    if (editingCategory) {
-      await updateMutation.mutateAsync({ ...editingCategory, ...formData });
+    if (editingItem) {
+      await updateMutation.mutateAsync({ ...editingItem, ...form });
+      setEditingItem(null);
     } else {
-      await createMutation.mutateAsync(formData);
+      await createMutation.mutateAsync(form as Inventory);
     }
-    handleCloseDialog();
+    setForm({
+      productId: "",
+      quantity: 0,
+      date: "",
+      remarks: "",
+      status: "active",
+    });
+    setIsDialogOpen(false);
     setSubmitting(false);
+    setErrors({});
   };
 
-  const handleEdit = (category: Category) => {
-    setEditingCategory(category);
-    setFormData({
-      name: category.name ?? "",
-      description: category.description ?? "",
+  const handleEdit = (inv: Inventory) => {
+    setEditingItem(inv);
+    setForm({
+      productId: inv.productId,
+      quantity: inv.quantity,
+      date: inv.date.slice(0, 10),
+      remarks: inv.remarks,
+      status: inv.status,
     });
     setErrors({});
     setIsDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!deletingCategory) return;
-    await deleteMutation.mutateAsync(deletingCategory._id);
+    if (!deletingItem) return;
+    await deleteMutation.mutateAsync(deletingItem._id!);
     setIsDeleteDialogOpen(false);
-    setDeletingCategory(null);
+    setDeletingItem(null);
   };
 
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setEditingCategory(null);
-    setFormData({ name: "", description: "" });
-    setErrors({});
-  };
-
-  const openDeleteDialog = (category: Category) => {
-    setDeletingCategory(category);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const isFormValid =
-    formData.name.trim() &&
-    formData.description.trim() &&
-    Object.keys(errors).length === 0;
-
-  const columns: ColumnDef<Category>[] = [
+  const columns: ColumnDef<Inventory>[] = [
     {
-      accessorKey: "name",
+      accessorKey: "productId",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          {t("Name")}
+          {t("Product")}
         </Button>
       ),
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.name}</span>
-      ),
+      cell: ({ row }) =>
+        products.find((p: Product) => p._id === row.original.productId)?.name ||
+        row.original.productId,
+      enableGlobalFilter: true,
     },
     {
-      accessorKey: "description",
+      accessorKey: "quantity",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          {t("Description")}
+          {t("Quantity")}
         </Button>
       ),
-      cell: ({ row }) => row.original.description,
+      cell: ({ row }) => row.original.quantity,
+      enableGlobalFilter: true,
     },
     {
-      accessorKey: "createdAt",
+      accessorKey: "date",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -230,7 +222,34 @@ function CategoryPage() {
           {t("Created At")}
         </Button>
       ),
-      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => <span>{ParseDate(row.original.date)}</span>,
+      enableGlobalFilter: true,
+    },
+    {
+      accessorKey: "remarks",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Remarks")}
+        </Button>
+      ),
+      cell: ({ row }) => row.original.remarks,
+      enableGlobalFilter: true,
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Status")}
+        </Button>
+      ),
+      cell: ({ row }) => row.original.status,
+      enableGlobalFilter: true,
     },
     {
       id: "actions",
@@ -247,17 +266,21 @@ function CategoryPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => openDeleteDialog(row.original)}
+            onClick={() => {
+              setDeletingItem(row.original);
+              setIsDeleteDialogOpen(true);
+            }}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
+      enableGlobalFilter: false,
     },
   ];
 
   const table = useReactTable({
-    data: categories,
+    data: inventories,
     columns,
     state: {
       sorting,
@@ -276,38 +299,32 @@ function CategoryPage() {
     globalFilterFn: "includesString",
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-  if (error) {
-    return <div>Error loading categories</div>;
-  }
+  if (isLoading || productsLoading) return <Spinner />;
+  if (error || productsError)
+    return <div>Error loading inventory or products</div>;
 
+  // Modern UI
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {t("Categories")}
+            {t("Inventory")}
           </h1>
           <p className="text-muted-foreground">
-            {t("Manage your product categories")}
+            {t("Track and manage your stock levels")}
           </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          {t("Add New Category")}
+          {t("Add Inventory Item")}
         </Button>
       </div>
 
       {/* Global Search */}
       <div className="flex items-center py-4">
         <Input
-          placeholder={t("Search categories...")}
+          placeholder="Search inventory..."
           value={globalFilter ?? ""}
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
@@ -450,53 +467,142 @@ function CategoryPage() {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsDialogOpen(false);
+            setEditingItem(null);
+            setForm({
+              productId: "",
+              quantity: 0,
+              date: "",
+              remarks: "",
+              status: "active",
+            });
+            setErrors({});
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? "Edit Category" : "Add New Category"}
+              {editingItem ? "Edit Inventory Item" : "Add New Inventory Item"}
             </DialogTitle>
             <DialogDescription>
-              {editingCategory
-                ? "Update the category information below."
-                : "Create a new category by filling out the form below."}
+              {editingItem
+                ? "Update the inventory information below."
+                : "Add a new item to your inventory by filling out the form below."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+              <Label htmlFor="product">Product</Label>
+              <Select
+                value={form.productId}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, productId: value }))
                 }
-                placeholder="Enter category name"
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name}</p>
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((prod: Product) => (
+                    <SelectItem
+                      key={prod._id || prod.name}
+                      value={prod._id || ""}
+                    >
+                      {prod.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.productId && (
+                <p className="text-sm text-red-500">{errors.productId}</p>
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
+              <Label htmlFor="quantity">Quantity</Label>
+              <Input
+                id="quantity"
+                type="number"
+                value={form.quantity || ""}
                 onChange={(e) =>
-                  setFormData((prev) => ({
+                  setForm((prev) => ({ ...prev, quantity: +e.target.value }))
+                }
+                placeholder="0"
+              />
+              {errors.quantity && (
+                <p className="text-sm text-red-500">{errors.quantity}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={form.date || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, date: e.target.value }))
+                }
+              />
+              {errors.date && (
+                <p className="text-sm text-red-500">{errors.date}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Input
+                id="remarks"
+                type="text"
+                value={form.remarks || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, remarks: e.target.value }))
+                }
+                placeholder="Remarks"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={form.status || "active"}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
                     ...prev,
-                    description: e.target.value,
+                    status: value as "active" | "inactive",
                   }))
                 }
-                placeholder="Enter category description"
-              />
-              {errors.description && (
-                <p className="text-sm text-red-500">{errors.description}</p>
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">active</SelectItem>
+                  <SelectItem value="inactive">inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.status && (
+                <p className="text-sm text-red-500">{errors.status}</p>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDialogOpen(false);
+                setEditingItem(null);
+                setForm({
+                  productId: "",
+                  quantity: 0,
+                  date: "",
+                  remarks: "",
+                  status: "active",
+                });
+                setErrors({});
+              }}
+            >
               Cancel
             </Button>
             <Button
@@ -504,12 +610,11 @@ function CategoryPage() {
               disabled={!isFormValid || submitting}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingCategory ? "Update" : "Create"}
+              {editingItem ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
@@ -519,7 +624,7 @@ function CategoryPage() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              category "{deletingCategory?.name}".
+              inventory entry.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -532,4 +637,4 @@ function CategoryPage() {
   );
 }
 
-export default CategoryPage;
+export default InventoryPage;

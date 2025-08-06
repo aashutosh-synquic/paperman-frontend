@@ -1,26 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Inventory,
-  getInventories,
-  createInventory,
-  updateInventory,
-  deleteInventory,
-} from "../services/inventory";
-import { getProducts, Product } from "../services/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -58,24 +43,41 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Category,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../../services/category";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ParseDate from "@/utils/parseDate.ts";
 import { useTranslation } from "react-i18next";
 
-function InventoryPage() {
+function CategoryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Inventory | null>(null);
-  const [deletingItem, setDeletingItem] = useState<Inventory | null>(null);
-  const [form, setForm] = useState<Partial<Inventory>>({
-    productId: "",
-    quantity: 0,
-    date: "",
-    remarks: "",
-    status: "active",
-  });
-  const [errors, setErrors] = useState<any>({});
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
+    null
+  );
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+  }>({ name: "", description: "" });
+  const [errors, setErrors] = useState<{ name?: string; description?: string }>(
+    {}
+  );
   const [submitting, setSubmitting] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -83,137 +85,143 @@ function InventoryPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const {
-    data: products = [],
-    isLoading: productsLoading,
-    error: productsError,
-  } = useQuery({
-    queryKey: ["products"],
-    queryFn: getProducts,
-  });
-
-  const {
-    data: inventories = [],
+    data: categories = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["inventories"],
-    queryFn: getInventories,
+    queryKey: ["categories"],
+    queryFn: getCategories,
   });
 
   const createMutation = useMutation({
-    mutationFn: createInventory,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
+    mutationFn: createCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Success", description: "Category created successfully" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create category",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: any) => updateInventory(payload._id, payload),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
+    mutationFn: ({ _id, ...data }: Category) => updateCategory(_id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Success", description: "Category updated successfully" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (_id: string) => deleteInventory(_id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["inventories"] }),
+    mutationFn: (id: string) => deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Success", description: "Category deleted successfully" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
+    },
   });
 
-  const isFormValid =
-    form.productId &&
-    form.quantity &&
-    form.date &&
-    form.status &&
-    !isNaN(Number(form.quantity)) &&
-    Object.keys(errors).length === 0;
-
-  const validateForm = () => {
-    const newErrors: any = {};
-    if (!form.productId) newErrors.productId = "Product is required";
-    if (
-      !form.quantity ||
-      isNaN(Number(form.quantity)) ||
-      Number(form.quantity) < 0
-    )
-      newErrors.quantity = "Quantity must be a valid non-negative number";
-    if (!form.date) newErrors.date = "Date is required";
-    if (!form.status) newErrors.status = "Status is required";
+  const validateForm = (): boolean => {
+    const newErrors: { name?: string; description?: string } = {};
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.description.trim())
+      newErrors.description = "Description is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     setSubmitting(true);
-    if (editingItem) {
-      await updateMutation.mutateAsync({ ...editingItem, ...form });
-      setEditingItem(null);
+    if (editingCategory) {
+      await updateMutation.mutateAsync({ ...editingCategory, ...formData });
     } else {
-      await createMutation.mutateAsync(form as Inventory);
+      await createMutation.mutateAsync(formData);
     }
-    setForm({
-      productId: "",
-      quantity: 0,
-      date: "",
-      remarks: "",
-      status: "active",
-    });
-    setIsDialogOpen(false);
+    handleCloseDialog();
     setSubmitting(false);
-    setErrors({});
   };
 
-  const handleEdit = (inv: Inventory) => {
-    setEditingItem(inv);
-    setForm({
-      productId: inv.productId,
-      quantity: inv.quantity,
-      date: inv.date.slice(0, 10),
-      remarks: inv.remarks,
-      status: inv.status,
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name ?? "",
+      description: category.description ?? "",
     });
     setErrors({});
     setIsDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!deletingItem) return;
-    await deleteMutation.mutateAsync(deletingItem._id!);
+    if (!deletingCategory) return;
+    await deleteMutation.mutateAsync(deletingCategory._id);
     setIsDeleteDialogOpen(false);
-    setDeletingItem(null);
+    setDeletingCategory(null);
   };
 
-  const columns: ColumnDef<Inventory>[] = [
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingCategory(null);
+    setFormData({ name: "", description: "" });
+    setErrors({});
+  };
+
+  const openDeleteDialog = (category: Category) => {
+    setDeletingCategory(category);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const isFormValid =
+    formData.name.trim() &&
+    formData.description.trim() &&
+    Object.keys(errors).length === 0;
+
+  const columns: ColumnDef<Category>[] = [
     {
-      accessorKey: "productId",
+      accessorKey: "name",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          {t("Product")}
+          {t("Name")}
         </Button>
       ),
-      cell: ({ row }) =>
-        products.find((p: Product) => p._id === row.original.productId)?.name ||
-        row.original.productId,
-      enableGlobalFilter: true,
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
     },
     {
-      accessorKey: "quantity",
+      accessorKey: "description",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          {t("Quantity")}
+          {t("Description")}
         </Button>
       ),
-      cell: ({ row }) => row.original.quantity,
-      enableGlobalFilter: true,
+      cell: ({ row }) => row.original.description,
     },
     {
-      accessorKey: "date",
+      accessorKey: "createdAt",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -222,34 +230,7 @@ function InventoryPage() {
           {t("Created At")}
         </Button>
       ),
-      cell: ({ row }) => <span>{ParseDate(row.original.date)}</span>,
-      enableGlobalFilter: true,
-    },
-    {
-      accessorKey: "remarks",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {t("Remarks")}
-        </Button>
-      ),
-      cell: ({ row }) => row.original.remarks,
-      enableGlobalFilter: true,
-    },
-    {
-      accessorKey: "status",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {t("Status")}
-        </Button>
-      ),
-      cell: ({ row }) => row.original.status,
-      enableGlobalFilter: true,
+      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
     },
     {
       id: "actions",
@@ -266,21 +247,17 @@ function InventoryPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setDeletingItem(row.original);
-              setIsDeleteDialogOpen(true);
-            }}
+            onClick={() => openDeleteDialog(row.original)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
-      enableGlobalFilter: false,
     },
   ];
 
   const table = useReactTable({
-    data: inventories,
+    data: categories,
     columns,
     state: {
       sorting,
@@ -299,32 +276,38 @@ function InventoryPage() {
     globalFilterFn: "includesString",
   });
 
-  if (isLoading || productsLoading) return <Spinner />;
-  if (error || productsError)
-    return <div>Error loading inventory or products</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  if (error) {
+    return <div>Error loading categories</div>;
+  }
 
-  // Modern UI
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {t("Inventory")}
+            {t("Categories")}
           </h1>
           <p className="text-muted-foreground">
-            {t("Track and manage your stock levels")}
+            {t("Manage your product categories")}
           </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          {t("Add Inventory Item")}
+          {t("Add New Category")}
         </Button>
       </div>
 
       {/* Global Search */}
       <div className="flex items-center py-4">
         <Input
-          placeholder="Search inventory..."
+          placeholder={t("Search categories...")}
           value={globalFilter ?? ""}
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
@@ -467,142 +450,53 @@ function InventoryPage() {
         </div>
       </div>
 
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsDialogOpen(false);
-            setEditingItem(null);
-            setForm({
-              productId: "",
-              quantity: 0,
-              date: "",
-              remarks: "",
-              status: "active",
-            });
-            setErrors({});
-          }
-        }}
-      >
+      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? "Edit Inventory Item" : "Add New Inventory Item"}
+              {editingCategory ? "Edit Category" : "Add New Category"}
             </DialogTitle>
             <DialogDescription>
-              {editingItem
-                ? "Update the inventory information below."
-                : "Add a new item to your inventory by filling out the form below."}
+              {editingCategory
+                ? "Update the category information below."
+                : "Create a new category by filling out the form below."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="product">Product</Label>
-              <Select
-                value={form.productId}
-                onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, productId: value }))
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((prod: Product) => (
-                    <SelectItem
-                      key={prod._id || prod.name}
-                      value={prod._id || ""}
-                    >
-                      {prod.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.productId && (
-                <p className="text-sm text-red-500">{errors.productId}</p>
+                placeholder="Enter category name"
+              />
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name}</p>
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={form.quantity || ""}
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, quantity: +e.target.value }))
-                }
-                placeholder="0"
-              />
-              {errors.quantity && (
-                <p className="text-sm text-red-500">{errors.quantity}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={form.date || ""}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, date: e.target.value }))
-                }
-              />
-              {errors.date && (
-                <p className="text-sm text-red-500">{errors.date}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="remarks">Remarks</Label>
-              <Input
-                id="remarks"
-                type="text"
-                value={form.remarks || ""}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, remarks: e.target.value }))
-                }
-                placeholder="Remarks"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={form.status || "active"}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
+                  setFormData((prev) => ({
                     ...prev,
-                    status: value as "active" | "inactive",
+                    description: e.target.value,
                   }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">active</SelectItem>
-                  <SelectItem value="inactive">inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.status && (
-                <p className="text-sm text-red-500">{errors.status}</p>
+                placeholder="Enter category description"
+              />
+              {errors.description && (
+                <p className="text-sm text-red-500">{errors.description}</p>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDialogOpen(false);
-                setEditingItem(null);
-                setForm({
-                  productId: "",
-                  quantity: 0,
-                  date: "",
-                  remarks: "",
-                  status: "active",
-                });
-                setErrors({});
-              }}
-            >
+            <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
             </Button>
             <Button
@@ -610,11 +504,12 @@ function InventoryPage() {
               disabled={!isFormValid || submitting}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingItem ? "Update" : "Create"}
+              {editingCategory ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
@@ -624,7 +519,7 @@ function InventoryPage() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              inventory entry.
+              category "{deletingCategory?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -637,4 +532,4 @@ function InventoryPage() {
   );
 }
 
-export default InventoryPage;
+export default CategoryPage;

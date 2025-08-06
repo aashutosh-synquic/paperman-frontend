@@ -57,7 +57,7 @@ import {
   updateCustomer,
   deleteCustomer,
   CustomerView,
-} from "../services/user";
+} from "../../services/user";
 import ParseDate from "@/utils/parseDate.ts";
 
 interface FormErrors {
