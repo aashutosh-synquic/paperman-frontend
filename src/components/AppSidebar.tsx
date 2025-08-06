@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getCurrentUser, logout } from "@/services/auth"; // <-- Add these in your auth.ts
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 const menuItems = [
   {
@@ -57,6 +58,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
+  const { i18n } = useTranslation();
   const location = useLocation();
   const [user, setUser] = useState<{ name: string; email: string } | null>(
     null
@@ -70,6 +72,10 @@ export function AppSidebar() {
   const handleLogout = async () => {
     await logout();
     window.location.href = "/login";
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang);
   };
 
   return (
@@ -105,14 +111,25 @@ export function AppSidebar() {
       <SidebarRail />
       {/* User Panel */}
       <div className="border-t px-4 py-3 flex flex-col gap-1 bg-muted">
-        <div className="flex items-center gap-2">
-          <User2 className="h-5 w-5" />
-          <div>
-            <div className="font-medium text-sm">{user?.name || "User"}</div>
-            <div className="text-xs text-muted-foreground">
-              {user?.email || ""}
+        <div className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <User2 className="h-5 w-5" />
+            <div>
+              <div className="font-medium text-sm">{user?.name || "User"}</div>
+              <div className="text-xs text-muted-foreground">
+                {user?.email || ""}
+              </div>
             </div>
           </div>
+          <button
+            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+            type="button"
+            onClick={() =>
+              handleLanguageChange(i18n.language === "en" ? "hi" : "en")
+            }
+          >
+            {i18n.language === "en" ? "हिंदी" : "English"}
+          </button>
         </div>
         <Button
           variant="ghost"

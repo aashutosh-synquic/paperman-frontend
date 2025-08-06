@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 //
 import { AuthProvider } from "./providers/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
+import "./lib/i18n";
 //
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFoundComponent from "./components/NotFound";
