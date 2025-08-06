@@ -31,5 +31,7 @@
   "Status": "स्थिति",
   "Track and manage your stock levels": "अपने स्टॉक स्तरों को ट्रैक और प्रबंधित करें",
   "Add Inventory Item": "इन्वेंटरी आइटम जोड़ें",
-  "Welcome to your admin dashboard. Here's an overview of your business.": "आपके प्रशासन डैशबोर्ड में आपका स्वागत है। यहाँ आपके व्यवसाय का एक अवलोकन है।"
+  "Welcome to your admin dashboard. Here's an overview of your business.": "आपके प्रशासन डैशबोर्ड में आपका स्वागत है। यहाँ आपके व्यवसाय का एक अवलोकन है।",
+  "Invalid email or password.": "अमान्य ईमेल या पासवर्ड।",
+  "An unknown error occurred.": "एक अज्ञात त्रुटि हुई।"
 }

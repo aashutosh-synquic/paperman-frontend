@@ -28,6 +28,7 @@ import {
 import { getCurrentUser, logout } from "@/services/auth"; // <-- Add these in your auth.ts
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { LanguageToggleButton } from "./LanguageToggleButton";
 
 const menuItems = [
   {
@@ -121,15 +122,7 @@ export function AppSidebar() {
               </div>
             </div>
           </div>
-          <button
-            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-            type="button"
-            onClick={() =>
-              handleLanguageChange(i18n.language === "en" ? "hi" : "en")
-            }
-          >
-            {i18n.language === "en" ? "हिंदी" : "English"}
-          </button>
+          <LanguageToggleButton />
         </div>
         <Button
           variant="ghost"

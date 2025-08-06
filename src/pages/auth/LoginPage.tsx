@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
+import { LanguageToggleButton } from "@/components/LanguageToggleButton";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -36,11 +37,25 @@ export default function LoginPage() {
       setError(null);
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/dashboard");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
+    } catch (err: any) {
+      // Handle Firebase error or custom error object
+      if (
+        err?.message === "INVALID_LOGIN_CREDENTIALS" ||
+        err?.code === 400 ||
+        err?.code === "auth/invalid-credential"
+      ) {
+        setError(t("Invalid email or password."));
+      } else if (err?.message === "INVALID_LOGIN_CREDENTIALS") {
+        setError(t("Invalid email or password."));
+      } else if (err instanceof Error) {
+        // Hide technical Firebase error from user
+        if (err.message.includes("auth/invalid-credential")) {
+          setError(t("Invalid email or password."));
+        } else {
+          setError(err.message);
+        }
       } else {
-        setError("An unknown error occurred.");
+        setError(t("An unknown error occurred."));
       }
     }
   };
@@ -51,7 +66,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md relative">
+        <div className="absolute top-4 right-4">
+          <LanguageToggleButton />
+        </div>
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
             {t("Welcome back")}
