@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -16,140 +16,74 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-// Sample inventory data
-const inventoryData = [
-  {
-    id: 1,
-    name: "Standard White Paper Reel",
-    category: "Standard",
-    gsm: 80,
-    unit: "Roll",
-    quantity: 150,
-    price: 45.99,
-    status: "In Stock",
-    width: "1200mm",
-    length: "500m",
-  },
-  {
-    id: 2,
-    name: "Premium Coated Paper Reel",
-    category: "Premium",
-    gsm: 120,
-    unit: "Roll",
-    quantity: 75,
-    price: 89.99,
-    status: "In Stock",
-    width: "1000mm",
-    length: "400m",
-  },
-  {
-    id: 3,
-    name: "Eco-Friendly Recycled Reel",
-    category: "Eco-Friendly",
-    gsm: 90,
-    unit: "Roll",
-    quantity: 200,
-    price: 52.99,
-    status: "In Stock",
-    width: "1200mm",
-    length: "600m",
-  },
-  {
-    id: 4,
-    name: "Heavy Duty Industrial Reel",
-    category: "Industrial",
-    gsm: 250,
-    unit: "Roll",
-    quantity: 25,
-    price: 125.99,
-    status: "Low Stock",
-    width: "1500mm",
-    length: "300m",
-  },
-  {
-    id: 5,
-    name: "Lightweight Newsprint Reel",
-    category: "Standard",
-    gsm: 45,
-    unit: "Roll",
-    quantity: 300,
-    price: 28.99,
-    status: "In Stock",
-    width: "1600mm",
-    length: "800m",
-  },
-  {
-    id: 6,
-    name: "High-Gloss Magazine Paper",
-    category: "Premium",
-    gsm: 150,
-    unit: "Roll",
-    quantity: 50,
-    price: 110.99,
-    status: "In Stock",
-    width: "900mm",
-    length: "350m",
-  },
-  {
-    id: 7,
-    name: "Kraft Brown Paper Reel",
-    category: "Specialty",
-    gsm: 70,
-    unit: "Roll",
-    quantity: 120,
-    price: 38.99,
-    status: "In Stock",
-    width: "1300mm",
-    length: "700m",
-  },
-  {
-    id: 8,
-    name: "Food Grade Paper Reel",
-    category: "Specialty",
-    gsm: 60,
-    unit: "Roll",
-    quantity: 10,
-    price: 95.99,
-    status: "Low Stock",
-    width: "1100mm",
-    length: "450m",
-  },
-];
-
-const categories = [
-  "All",
-  "Standard",
-  "Premium",
-  "Eco-Friendly",
-  "Industrial",
-  "Specialty",
-];
-
 export default function StockPage() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedProduct, setSelectedProduct] = useState<
-    (typeof inventoryData)[0] | null
-  >(null);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
-  const filteredInventory = useMemo(() => {
-    return inventoryData.filter((item) => {
+  // Fetch data from API
+  useEffect(() => {
+    setLoading(true);
+    fetch("http://localhost:5000/api/stock")
+      .then((res) => res.json())
+      .then((data) => {
+        setCategories(data.categories || []);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Flatten all products for stats and search/filter
+  const allProducts = useMemo(
+    () =>
+      categories.flatMap((cat) =>
+        (cat.products || []).map((prod) => ({
+          ...prod,
+          categoryName: cat.name,
+        }))
+      ),
+    [categories]
+  );
+
+  // For filter buttons
+  const categoryNames = useMemo(
+    () => ["All", ...categories.map((c) => c.name)],
+    [categories]
+  );
+
+  // Filtered products for table
+  const filteredProducts = useMemo(() => {
+    return allProducts.filter((item) => {
       const matchesSearch =
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchTerm.toLowerCase());
+        item.categoryName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory =
-        selectedCategory === "All" || item.category === selectedCategory;
+        selectedCategory === "All" || item.categoryName === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [allProducts, searchTerm, selectedCategory]);
 
-  const totalProducts = inventoryData.length;
-  const inStockProducts = inventoryData.filter(
-    (item) => item.status === "In Stock"
+  // Stats
+  const totalProducts = allProducts.length;
+  const inStockProducts = allProducts.filter((item) =>
+    (item.inventory || []).some(
+      (inv) => inv.status === "active" && inv.quantity > 0
+    )
   ).length;
-  const lowStockProducts = inventoryData.filter(
-    (item) => item.status === "Low Stock"
+  const lowStockProducts = allProducts.filter((item) =>
+    (item.inventory || []).some(
+      (inv) => inv.status === "active" && inv.quantity > 0 && inv.quantity < 50
+    )
   ).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <span className="text-lg text-gray-500">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -245,7 +179,7 @@ export default function StockPage() {
                   <Filter className="w-5 h-5 text-gray-400" />
                   <span className="text-sm text-gray-600">Filter by:</span>
                   <div className="flex gap-2">
-                    {categories.map((category) => (
+                    {categoryNames.map((category) => (
                       <Button
                         key={category}
                         variant={
@@ -276,9 +210,7 @@ export default function StockPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>
-                  Product Inventory ({filteredInventory.length} items)
-                </span>
+                <span>Product Inventory ({filteredProducts.length} items)</span>
                 <Badge
                   variant="outline"
                   className="text-green-600 border-green-600"
@@ -319,76 +251,98 @@ export default function StockPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredInventory.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b border-gray-100 hover:bg-gray-50"
-                      >
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {item.name}
+                    {filteredProducts.map((item) => {
+                      // Calculate total quantity and status from inventory
+                      const totalQty = (item.inventory || []).reduce(
+                        (sum, inv) =>
+                          inv.status === "active" ? sum + inv.quantity : sum,
+                        0
+                      );
+                      const status =
+                        totalQty === 0
+                          ? "Out of Stock"
+                          : totalQty < 50
+                          ? "Low Stock"
+                          : "In Stock";
+                      return (
+                        <tr
+                          key={item._id}
+                          className="border-b border-gray-100 hover:bg-gray-50"
+                        >
+                          <td className="py-4 px-4">
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {item.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {item.type}
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {item.width} × {item.length}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <Badge variant="outline" className="text-xs">
-                            {item.category}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4 text-gray-900">{item.gsm}</td>
-                        <td className="py-4 px-4 text-gray-900">{item.unit}</td>
-                        <td className="py-4 px-4">
-                          <span
-                            className={`font-medium ${
-                              item.quantity < 50
-                                ? "text-orange-600"
-                                : "text-gray-900"
-                            }`}
-                          >
-                            {item.quantity}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-gray-900 font-medium">
-                          ${item.price}
-                        </td>
-                        <td className="py-4 px-4">
-                          <Badge
-                            variant={
-                              item.status === "In Stock"
-                                ? "default"
-                                : "destructive"
-                            }
-                            className={
-                              item.status === "In Stock"
-                                ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                : ""
-                            }
-                          >
-                            {item.status}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedProduct(item)}
-                            className="flex items-center gap-2"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-4 px-4">
+                            <Badge variant="outline" className="text-xs">
+                              {item.categoryName}
+                            </Badge>
+                          </td>
+                          <td className="py-4 px-4 text-gray-900">
+                            {item.gsm}
+                          </td>
+                          <td className="py-4 px-4 text-gray-900">
+                            {item.unit}
+                          </td>
+                          <td className="py-4 px-4">
+                            <span
+                              className={`font-medium ${
+                                totalQty < 50
+                                  ? "text-orange-600"
+                                  : "text-gray-900"
+                              }`}
+                            >
+                              {totalQty}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-gray-900 font-medium">
+                            ₹{item.price}
+                          </td>
+                          <td className="py-4 px-4">
+                            <Badge
+                              variant={
+                                status === "In Stock"
+                                  ? "default"
+                                  : status === "Low Stock"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                              className={
+                                status === "In Stock"
+                                  ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                  : status === "Low Stock"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-gray-100 text-gray-600"
+                              }
+                            >
+                              {status}
+                            </Badge>
+                          </td>
+                          <td className="py-4 px-4">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedProduct(item)}
+                              className="flex items-center gap-2"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {filteredInventory.length === 0 && (
+              {filteredProducts.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -430,7 +384,7 @@ export default function StockPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Category:</span>
                       <Badge variant="outline">
-                        {selectedProduct.category}
+                        {selectedProduct.categoryName}
                       </Badge>
                     </div>
                     <div className="flex justify-between">
@@ -438,15 +392,9 @@ export default function StockPage() {
                       <span className="font-medium">{selectedProduct.gsm}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Width:</span>
+                      <span className="text-gray-600">Type:</span>
                       <span className="font-medium">
-                        {selectedProduct.width}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Length:</span>
-                      <span className="font-medium">
-                        {selectedProduct.length}
+                        {selectedProduct.type}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -466,30 +414,67 @@ export default function StockPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
                       <Badge
-                        variant={
-                          selectedProduct.status === "In Stock"
-                            ? "default"
-                            : "destructive"
-                        }
-                        className={
-                          selectedProduct.status === "In Stock"
-                            ? "bg-green-100 text-green-800"
-                            : ""
-                        }
+                        variant={(() => {
+                          const totalQty = (
+                            selectedProduct.inventory || []
+                          ).reduce(
+                            (sum, inv) =>
+                              inv.status === "active"
+                                ? sum + inv.quantity
+                                : sum,
+                            0
+                          );
+                          if (totalQty === 0) return "secondary";
+                          if (totalQty < 50) return "destructive";
+                          return "default";
+                        })()}
+                        className={(() => {
+                          const totalQty = (
+                            selectedProduct.inventory || []
+                          ).reduce(
+                            (sum, inv) =>
+                              inv.status === "active"
+                                ? sum + inv.quantity
+                                : sum,
+                            0
+                          );
+                          if (totalQty === 0)
+                            return "bg-gray-100 text-gray-600";
+                          if (totalQty < 50)
+                            return "bg-orange-100 text-orange-800";
+                          return "bg-green-100 text-green-800";
+                        })()}
                       >
-                        {selectedProduct.status}
+                        {(() => {
+                          const totalQty = (
+                            selectedProduct.inventory || []
+                          ).reduce(
+                            (sum, inv) =>
+                              inv.status === "active"
+                                ? sum + inv.quantity
+                                : sum,
+                            0
+                          );
+                          if (totalQty === 0) return "Out of Stock";
+                          if (totalQty < 50) return "Low Stock";
+                          return "In Stock";
+                        })()}
                       </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Quantity Available:</span>
                       <span className="font-medium">
-                        {selectedProduct.quantity}
+                        {(selectedProduct.inventory || []).reduce(
+                          (sum, inv) =>
+                            inv.status === "active" ? sum + inv.quantity : sum,
+                          0
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Price per Unit:</span>
                       <span className="font-bold text-green-600">
-                        ${selectedProduct.price}
+                        ₹{selectedProduct.price}
                       </span>
                     </div>
                   </div>
@@ -501,10 +486,8 @@ export default function StockPage() {
                   Product Description
                 </h4>
                 <p className="text-gray-600">
-                  This high-quality paper reel is manufactured using our
-                  sustainable processes and meets all industry standards.
-                  Perfect for various printing and packaging applications with
-                  consistent quality and reliable performance.
+                  {selectedProduct.description ||
+                    "This high-quality paper reel is manufactured using our sustainable processes and meets all industry standards. Perfect for various printing and packaging applications with consistent quality and reliable performance."}
                 </p>
               </div>
 
