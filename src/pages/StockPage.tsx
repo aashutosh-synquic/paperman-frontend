@@ -15,6 +15,7 @@ import {
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
+import { apiUrl } from "@/services/index";
 
 export default function StockPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -26,7 +27,7 @@ export default function StockPage() {
   // Fetch data from API
   useEffect(() => {
     setLoading(true);
-    fetch("http://localhost:5000/api/stock")
+    fetch(`${apiUrl}/stock`)
       .then((res) => res.json())
       .then((data) => {
         setCategories(data.categories || []);
