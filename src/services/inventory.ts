@@ -18,7 +18,6 @@ export const createInventory = async (inventoryData: Inventory) => {
 
 export const getInventories = async (): Promise<Inventory[]> => {
   const response = await authAxios.get(`${baseUrl}`);
-  console.log(response.data);
   return response.data;
 };
 

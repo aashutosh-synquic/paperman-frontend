@@ -193,7 +193,7 @@ function InventoryPage() {
         </Button>
       ),
       cell: ({ row }) =>
-        products.find((p: Product) => p.id === row.original.productId)?.name ||
+        products.find((p: Product) => p._id === row.original.productId)?.name ||
         row.original.productId,
       enableGlobalFilter: true,
     },
@@ -506,8 +506,8 @@ function InventoryPage() {
                 <SelectContent>
                   {products.map((prod: Product) => (
                     <SelectItem
-                      key={prod.id || prod.name}
-                      value={prod.id || ""}
+                      key={prod._id || prod.name}
+                      value={prod._id || ""}
                     >
                       {prod.name}
                     </SelectItem>

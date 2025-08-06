@@ -603,7 +603,7 @@ function ProductPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat: Category) => (
-                    <SelectItem key={cat.id || cat.name} value={cat.name}>
+                    <SelectItem key={cat._id || cat.name} value={cat.name}>
                       {cat.name}
                     </SelectItem>
                   ))}

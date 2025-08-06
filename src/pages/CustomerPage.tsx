@@ -56,8 +56,7 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
-  Customer,
-  CustomerFormData,
+  CustomerView,
 } from "../services/user";
 import ParseDate from "@/utils/parseDate.ts";
 
@@ -68,12 +67,14 @@ interface FormErrors {
 }
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerView[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(
+  const [editingCustomer, setEditingCustomer] = useState<CustomerView | null>(
+    null
+  );
+  const [deletingCustomer, setDeletingCustomer] = useState<CustomerView | null>(
     null
   );
   const [submitting, setSubmitting] = useState(false);
