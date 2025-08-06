@@ -58,7 +58,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [user, setUser] = useState<{ name: string; email: string } | null>(
     null
@@ -83,12 +83,12 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-2">
           <ShoppingCart className="h-6 w-6" />
-          <span className="font-semibold text-lg">Admin Panel</span>
+          <span className="font-semibold text-lg">{t("Admin Panel")}</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("Navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -99,7 +99,7 @@ export function AppSidebar() {
                   >
                     <Link to={item.url}>
                       <item.icon />
-                      <span>{item.title}</span>
+                      <span>{t(item.title)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -138,7 +138,7 @@ export function AppSidebar() {
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
-          Logout
+          {t("Logout")}
         </Button>
       </div>
     </Sidebar>
