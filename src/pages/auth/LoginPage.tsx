@@ -14,8 +14,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +54,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            Welcome back
+            {t("Welcome back")}
           </CardTitle>
           <CardDescription className="text-center">
-            Enter your email and password to sign in
+            {t("Enter your email and password to sign in")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -90,15 +92,15 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-sm text-primary hover:underline"
               >
-                Forgot password?
+                {t("Forgot password?")}
               </a>
             </div>
             <Button type="submit" className="w-full">
-              Sign In
+              {t("Log In")}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
+        {/* <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-muted-foreground">
             {"Don't have an account? "}
             <a
@@ -108,7 +110,7 @@ export default function LoginPage() {
               Sign up
             </a>
           </div>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     </div>
   );
