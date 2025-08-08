@@ -81,7 +81,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader>
+      <SidebarHeader className="bg-gray-800 text-white">
         <div className="flex items-center gap-2 px-4 py-2">
           <ShoppingCart className="h-6 w-6" />
           <span className="font-semibold text-lg">{t("Admin Panel")}</span>

@@ -16,6 +16,16 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { apiUrl } from "@/services/index";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { sendQuoteRequest, sendEnquiry } from "@/services/sendMail";
 
 export default function StockPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -23,6 +33,28 @@ export default function StockPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedInventories, setSelectedInventories] = useState<any[]>([]);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [quoteForm, setQuoteForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    company: "",
+  });
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteSuccess, setQuoteSuccess] = useState<string | null>(null);
+  const [enquiryDialogOpen, setEnquiryDialogOpen] = useState(false);
+  const [enquiryForm, setEnquiryForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    company: "",
+    message: "",
+  });
+  const [enquirySubmitting, setEnquirySubmitting] = useState(false);
+  const [enquiryError, setEnquiryError] = useState<string | null>(null);
+  const [enquirySuccess, setEnquirySuccess] = useState<string | null>(null);
 
   // Fetch data from API
   useEffect(() => {
@@ -77,6 +109,103 @@ export default function StockPage() {
       (inv) => inv.status === "active" && inv.quantity > 0 && inv.quantity < 50
     )
   ).length;
+
+  // Flatten all inventories for selection
+  const allInventories = useMemo(
+    () =>
+      allProducts.flatMap((prod) =>
+        (prod.inventory || []).map((inv: any) => ({
+          ...inv,
+          product: prod,
+          _invId: inv._id,
+        }))
+      ),
+    [allProducts]
+  );
+
+  // Inventory selection handlers
+  const isInventorySelected = (invId: string) =>
+    selectedInventories.some((inv) => inv._invId === invId);
+
+  const handleInventorySelect = (inv: any, checked: boolean) => {
+    setSelectedInventories((prev) =>
+      checked ? [...prev, inv] : prev.filter((i) => i._invId !== inv._invId)
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedInventories(allInventories);
+    } else {
+      setSelectedInventories([]);
+    }
+  };
+
+  // Quote form submit
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuoteError(null);
+    setQuoteSuccess(null);
+    if (
+      !quoteForm.name.trim() ||
+      !quoteForm.phone.trim() ||
+      !quoteForm.email.trim() ||
+      !quoteForm.company.trim() ||
+      selectedInventories.length === 0
+    ) {
+      setQuoteError("Please fill all fields and select at least one item.");
+      return;
+    }
+    setQuoteSubmitting(true);
+    try {
+      await sendQuoteRequest({
+        ...quoteForm,
+        items: selectedInventories,
+      });
+      setQuoteSuccess(
+        "Quote request submitted! Our team will contact you soon."
+      );
+      setQuoteForm({ name: "", phone: "", email: "", company: "" });
+      setSelectedInventories([]);
+      setQuoteDialogOpen(false);
+    } catch (err: any) {
+      setQuoteError("Failed to send quote request. Please try again.");
+    }
+    setQuoteSubmitting(false);
+  };
+
+  // Enquiry form submit
+  const handleEnquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnquiryError(null);
+    setEnquirySuccess(null);
+    if (
+      !enquiryForm.name.trim() ||
+      !enquiryForm.phone.trim() ||
+      !enquiryForm.email.trim() ||
+      !enquiryForm.company.trim() ||
+      !enquiryForm.message.trim()
+    ) {
+      setEnquiryError("Please fill all fields.");
+      return;
+    }
+    setEnquirySubmitting(true);
+    try {
+      await sendEnquiry(enquiryForm);
+      setEnquirySuccess("Enquiry submitted! Our team will contact you soon.");
+      setEnquiryForm({
+        name: "",
+        phone: "",
+        email: "",
+        company: "",
+        message: "",
+      });
+      setEnquiryDialogOpen(false);
+    } catch (err: any) {
+      setEnquiryError("Failed to send enquiry. Please try again.");
+    }
+    setEnquirySubmitting(false);
+  };
 
   if (loading) {
     return (
@@ -211,7 +340,7 @@ export default function StockPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Product Inventory ({filteredProducts.length} items)</span>
+                <span>Available Inventory ({allInventories.length} items)</span>
                 <Badge
                   variant="outline"
                   className="text-green-600 border-green-600"
@@ -221,133 +350,123 @@ export default function StockPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex items-center gap-4">
+                <Checkbox
+                  checked={
+                    selectedInventories.length === allInventories.length &&
+                    allInventories.length > 0
+                  }
+                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                  id="select-all"
+                />
+                <Label htmlFor="select-all" className="cursor-pointer">
+                  Select All
+                </Label>
+                <Button
+                  size="sm"
+                  className="ml-auto"
+                  disabled={selectedInventories.length === 0}
+                  onClick={() => setQuoteDialogOpen(true)}
+                >
+                  Request Quote ({selectedInventories.length})
+                </Button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
+                      <th></th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
-                        Product Name
+                        Product
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
                         Category
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                        Type
+                      </th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
                         GSM
+                      </th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                        Length
+                      </th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                        Width
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
                         Unit
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
-                        Quantity
+                        Weight (kg)
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
-                        Price
+                        Quantity
                       </th>
                       <th className="text-left py-4 px-4 font-semibold text-gray-900">
                         Status
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
-                        Action
-                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProducts.map((item) => {
-                      // Calculate total quantity and status from inventory
-                      const totalQty = (item.inventory || []).reduce(
-                        (sum, inv) =>
-                          inv.status === "active" ? sum + inv.quantity : sum,
-                        0
-                      );
-                      const status =
-                        totalQty === 0
-                          ? "Out of Stock"
-                          : totalQty < 50
-                          ? "Low Stock"
-                          : "In Stock";
-                      return (
-                        <tr
-                          key={item._id}
-                          className="border-b border-gray-100 hover:bg-gray-50"
-                        >
-                          <td className="py-4 px-4">
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {item.name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {item.type}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <Badge variant="outline" className="text-xs">
-                              {item.categoryName}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-4 text-gray-900">
-                            {item.gsm}
-                          </td>
-                          <td className="py-4 px-4 text-gray-900">
-                            {item.unit}
-                          </td>
-                          <td className="py-4 px-4">
-                            <span
-                              className={`font-medium ${
-                                totalQty < 50
-                                  ? "text-orange-600"
-                                  : "text-gray-900"
-                              }`}
-                            >
-                              {totalQty}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-gray-900 font-medium">
-                            ₹{item.price}
-                          </td>
-                          <td className="py-4 px-4">
-                            <Badge
-                              variant={
-                                status === "In Stock"
-                                  ? "default"
-                                  : status === "Low Stock"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                              className={
-                                status === "In Stock"
-                                  ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                  : status === "Low Stock"
-                                  ? "bg-orange-100 text-orange-800"
-                                  : "bg-gray-100 text-gray-600"
-                              }
-                            >
-                              {status}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-4">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedProduct(item)}
-                              className="flex items-center gap-2"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {allInventories.map((inv) => (
+                      <tr
+                        key={inv._invId}
+                        className="border-b border-gray-100 hover:bg-gray-50"
+                      >
+                        <td className="py-4 px-2">
+                          <Checkbox
+                            checked={isInventorySelected(inv._invId)}
+                            onCheckedChange={(checked) =>
+                              handleInventorySelect(inv, !!checked)
+                            }
+                          />
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="font-medium text-gray-900">
+                            {inv.product.name}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge variant="outline" className="text-xs">
+                            {inv.product.category}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Badge variant="secondary" className="text-xs">
+                            {inv.product.type}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-4">{inv.product.gsm}</td>
+                        <td className="py-4 px-4">{inv.item_length}</td>
+                        <td className="py-4 px-4">{inv.item_width}</td>
+                        <td className="py-4 px-4">{inv.item_lw_unit}</td>
+                        <td className="py-4 px-4">{inv.weight}</td>
+                        <td className="py-4 px-4">{inv.quantity}</td>
+                        <td className="py-4 px-4">
+                          <Badge
+                            variant={
+                              inv.status === "active" ? "default" : "secondary"
+                            }
+                            className={
+                              inv.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-600"
+                            }
+                          >
+                            {inv.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-
-              {filteredProducts.length === 0 && (
+              {allInventories.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No products found
+                    No inventory found
                   </h3>
                   <p className="text-gray-600">
                     Try adjusting your search or filter criteria.
@@ -359,151 +478,176 @@ export default function StockPage() {
         </div>
       </section>
 
-      {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{selectedProduct.name}</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedProduct(null)}
-                >
-                  ×
-                </Button>
+      {/* Request Quote Dialog */}
+      <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Quote</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleQuoteSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={quoteForm.name}
+                  onChange={(e) =>
+                    setQuoteForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  required
+                  autoComplete="name"
+                />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">
-                    Product Details
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Category:</span>
-                      <Badge variant="outline">
-                        {selectedProduct.categoryName}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">GSM:</span>
-                      <span className="font-medium">{selectedProduct.gsm}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Type:</span>
-                      <span className="font-medium">
-                        {selectedProduct.type}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Unit:</span>
-                      <span className="font-medium">
-                        {selectedProduct.unit}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <Label>Phone Number</Label>
+                <Input
+                  value={quoteForm.phone}
+                  onChange={(e) =>
+                    setQuoteForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  required
+                  autoComplete="tel"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={quoteForm.email}
+                  onChange={(e) =>
+                    setQuoteForm((f) => ({ ...f, email: e.target.value }))
+                  }
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <Label>Company Name</Label>
+                <Input
+                  value={quoteForm.company}
+                  onChange={(e) =>
+                    setQuoteForm((f) => ({ ...f, company: e.target.value }))
+                  }
+                  required
+                  autoComplete="organization"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Selected Items</Label>
+              <ul className="list-disc ml-6 text-sm max-h-32 overflow-y-auto">
+                {selectedInventories.map((inv) => (
+                  <li key={inv._invId}>
+                    {inv.product.name} ({inv.product.type},{" "}
+                    {inv.product.category}) - {inv.weight}kg, Qty:{" "}
+                    {inv.quantity}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {quoteError && (
+              <div className="text-red-500 text-sm">{quoteError}</div>
+            )}
+            {quoteSuccess && (
+              <div className="text-green-600 text-sm">{quoteSuccess}</div>
+            )}
+            <DialogFooter className="pt-2">
+              <Button
+                type="submit"
+                disabled={quoteSubmitting}
+                className="w-full"
+              >
+                {quoteSubmitting ? "Submitting..." : "Submit Quote Request"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">
-                    Availability & Pricing
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <Badge
-                        variant={(() => {
-                          const totalQty = (
-                            selectedProduct.inventory || []
-                          ).reduce(
-                            (sum, inv) =>
-                              inv.status === "active"
-                                ? sum + inv.quantity
-                                : sum,
-                            0
-                          );
-                          if (totalQty === 0) return "secondary";
-                          if (totalQty < 50) return "destructive";
-                          return "default";
-                        })()}
-                        className={(() => {
-                          const totalQty = (
-                            selectedProduct.inventory || []
-                          ).reduce(
-                            (sum, inv) =>
-                              inv.status === "active"
-                                ? sum + inv.quantity
-                                : sum,
-                            0
-                          );
-                          if (totalQty === 0)
-                            return "bg-gray-100 text-gray-600";
-                          if (totalQty < 50)
-                            return "bg-orange-100 text-orange-800";
-                          return "bg-green-100 text-green-800";
-                        })()}
-                      >
-                        {(() => {
-                          const totalQty = (
-                            selectedProduct.inventory || []
-                          ).reduce(
-                            (sum, inv) =>
-                              inv.status === "active"
-                                ? sum + inv.quantity
-                                : sum,
-                            0
-                          );
-                          if (totalQty === 0) return "Out of Stock";
-                          if (totalQty < 50) return "Low Stock";
-                          return "In Stock";
-                        })()}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Quantity Available:</span>
-                      <span className="font-medium">
-                        {(selectedProduct.inventory || []).reduce(
-                          (sum, inv) =>
-                            inv.status === "active" ? sum + inv.quantity : sum,
-                          0
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Price per Unit:</span>
-                      <span className="font-bold text-green-600">
-                        ₹{selectedProduct.price}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      {/* General Enquiry Dialog */}
+      <Dialog open={enquiryDialogOpen} onOpenChange={setEnquiryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>General Enquiry</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEnquirySubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={enquiryForm.name}
+                  onChange={(e) =>
+                    setEnquiryForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  required
+                  autoComplete="name"
+                />
               </div>
-
-              <div className="border-t pt-6">
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  Product Description
-                </h4>
-                <p className="text-gray-600">
-                  {selectedProduct.description ||
-                    "This high-quality paper reel is manufactured using our sustainable processes and meets all industry standards. Perfect for various printing and packaging applications with consistent quality and reliable performance."}
-                </p>
+              <div>
+                <Label>Phone Number</Label>
+                <Input
+                  value={enquiryForm.phone}
+                  onChange={(e) =>
+                    setEnquiryForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  required
+                  autoComplete="tel"
+                />
               </div>
-
-              <div className="flex gap-4 pt-4">
-                <Button className="flex-1 bg-green-600 hover:bg-green-700">
-                  Request Quote
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  Contact Sales
-                </Button>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={enquiryForm.email}
+                  onChange={(e) =>
+                    setEnquiryForm((f) => ({ ...f, email: e.target.value }))
+                  }
+                  required
+                  autoComplete="email"
+                />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <div>
+                <Label>Company Name</Label>
+                <Input
+                  value={enquiryForm.company}
+                  onChange={(e) =>
+                    setEnquiryForm((f) => ({ ...f, company: e.target.value }))
+                  }
+                  required
+                  autoComplete="organization"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Input
+                as="textarea"
+                value={enquiryForm.message}
+                onChange={(e) =>
+                  setEnquiryForm((f) => ({ ...f, message: e.target.value }))
+                }
+                placeholder="Type your enquiry here..."
+                required
+                className="min-h-[80px]"
+              />
+            </div>
+            {enquiryError && (
+              <div className="text-red-500 text-sm">{enquiryError}</div>
+            )}
+            {enquirySuccess && (
+              <div className="text-green-600 text-sm">{enquirySuccess}</div>
+            )}
+            <DialogFooter className="pt-2">
+              <Button
+                type="submit"
+                disabled={enquirySubmitting}
+                className="w-full"
+              >
+                {enquirySubmitting ? "Submitting..." : "Submit Enquiry"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>
