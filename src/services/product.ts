@@ -5,12 +5,9 @@ const baseUrl = apiUrl + '/products';
 export interface Product {
     _id?: string;
     name: string;
-    category: "Duplex";
+    category: string;
     type: string;
     gsm: number;
-    unit: "kg" | "reel" | "ton";
-    quantity: number;
-    price: number;
     createdAt?: string;
 }
 

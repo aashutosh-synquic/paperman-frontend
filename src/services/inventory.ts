@@ -6,7 +6,7 @@ export interface Inventory {
   _id?: string;
   productId: string;
   quantity: number;
-  date: string;
+  createdAt: string;
   remarks?: string;
   status: "active" | "inactive";
 }

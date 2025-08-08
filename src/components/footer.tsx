@@ -11,7 +11,9 @@ export function Footer() {
               <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center mr-3">
                 <Leaf className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold">Paperman</span>
+              <span className="text-xl font-bold">
+                Parashwanath Enterprises
+              </span>
             </div>
             <p className="text-gray-400 mb-4">
               Leading manufacturer of sustainable paper reels, committed to
@@ -84,7 +86,9 @@ export function Footer() {
               </div>
               <div className="flex items-center">
                 <Mail className="w-4 h-4 mr-2 text-green-400" />
-                <span className="text-gray-400">info@paperman.com</span>
+                <span className="text-gray-400">
+                  info@Parashwanath Enterprises.com
+                </span>
               </div>
               <div className="flex items-center">
                 <MapPin className="w-4 h-4 mr-2 text-green-400" />
@@ -98,8 +102,8 @@ export function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 Paperman. All rights reserved. | Sustainable Manufacturing
-            Solutions
+            © 2024 Parashwanath Enterprises. All rights reserved. | Sustainable
+            Manufacturing Solutions
           </p>
         </div>
       </div>

@@ -86,7 +86,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              About Paperman
+              About Parashwanath Enterprises
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Leading the industry in sustainable paper reel manufacturing with
@@ -100,7 +100,7 @@ export default function LandingPage() {
                 Our Mission & Values
               </h3>
               <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                Paperman is a leading manufacturer of sustainable paper reels,
+                Parashwanath Enterprises is a leading manufacturer of sustainable paper reels,
                 committed to providing high-quality products while minimizing
                 environmental impact. Our mission is to deliver reliable,
                 eco-friendly paper solutions that meet the diverse needs of our
@@ -167,7 +167,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Paperman?
+              Why Choose Parashwanath Enterprises?
             </h2>
             <p className="text-xl text-gray-600">
               We deliver excellence through our core values and industry-leading
@@ -384,8 +384,8 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-1">Email</h4>
-                    <p className="text-gray-600">info@paperman.com</p>
-                    <p className="text-gray-600">sales@paperman.com</p>
+                    <p className="text-gray-600">info@Parashwanath Enterprises.com</p>
+                    <p className="text-gray-600">sales@Parashwanath Enterprises.com</p>
                   </div>
                 </div>
 

@@ -8,8 +8,8 @@ import {
   createInventory,
   updateInventory,
   deleteInventory,
-} from "../../services/inventory";
-import { getProducts, Product } from "../../services/product";
+} from "../services/inventory";
+import { getProducts, Product } from "../services/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +89,6 @@ function InventoryPage() {
     item_width: string;
     item_lw_unit: "cm" | "inch";
     weight: string;
-    quantity: string;
     remarks: string;
     status: "active" | "inactive";
   }>({
@@ -98,7 +97,6 @@ function InventoryPage() {
     item_width: "",
     item_lw_unit: "cm",
     weight: "",
-    quantity: "",
     remarks: "",
     status: "active",
   });
@@ -174,12 +172,6 @@ function InventoryPage() {
       (form.item_lw_unit !== "cm" && form.item_lw_unit !== "inch")
     )
       newErrors.item_lw_unit = "Unit is required";
-    if (
-      !form.quantity ||
-      isNaN(Number(form.quantity)) ||
-      Number(form.quantity) < 0
-    )
-      newErrors.quantity = "Quantity is required";
     if (selectedProduct?.type === "reel") {
       if (
         !form.weight ||
@@ -223,8 +215,8 @@ function InventoryPage() {
     if (e) e.preventDefault();
     if (!validateForm()) return;
     setSubmitting(true);
-
-    const todayStr = new Date().toISOString();
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
 
     let payload: any = {
       productId: form.productId,
@@ -234,14 +226,15 @@ function InventoryPage() {
       remarks: form.remarks,
       status: "active",
       date: todayStr,
-      quantity: Number(form.quantity),
     };
 
     if (selectedProduct?.type === "reel") {
       payload.weight = Number(form.weight);
+      payload.quantity = Number(form.weight); // for compatibility
     } else if (selectedProduct?.type === "bundle") {
       const bundleWeight = Number(calcBundleWeight());
       payload.weight = bundleWeight;
+      payload.quantity = bundleWeight; // for compatibility
     }
 
     if (editingItem) {
@@ -256,7 +249,6 @@ function InventoryPage() {
       item_width: "",
       item_lw_unit: "cm",
       weight: "",
-      quantity: "",
       remarks: "",
       status: "active",
     });
@@ -270,11 +262,9 @@ function InventoryPage() {
     setEditingItem(inv);
     setForm({
       productId: inv.productId,
-      item_length: inv.item_length?.toString() || "",
-      item_width: inv.item_width?.toString() || "",
+      item_length: inv.item_length,
+      item_width: inv.item_width,
       item_lw_unit: inv.item_lw_unit,
-      weight: inv.weight?.toString() || "",
-      quantity: inv.quantity?.toString() || "",
       remarks: inv.remarks,
       status: inv.status,
     });
@@ -312,11 +302,6 @@ function InventoryPage() {
                 {prod.category}
               </Badge>
             )}
-            {prod.type && (
-              <Badge className="ml-2" variant="secondary">
-                {prod.type}
-              </Badge>
-            )}
           </span>
         ) : (
           row.original.productId
@@ -325,44 +310,56 @@ function InventoryPage() {
       enableGlobalFilter: true,
     },
     {
-      accessorKey: "item_length",
-      header: () => "Length",
-      cell: ({ row }) => row.original.item_length,
-    },
-    {
-      accessorKey: "item_width",
-      header: () => "Width",
-      cell: ({ row }) => row.original.item_width,
-    },
-    {
-      accessorKey: "item_lw_unit",
-      header: () => "Unit",
-      cell: ({ row }) => row.original.item_lw_unit,
-    },
-    {
-      accessorKey: "weight",
-      header: () => "Weight (kg)",
-      cell: ({ row }) => row.original.weight,
-    },
-    {
       accessorKey: "quantity",
-      header: () => "Quantity",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Quantity")}
+        </Button>
+      ),
       cell: ({ row }) => row.original.quantity,
+      enableGlobalFilter: true,
     },
     {
-      accessorKey: "createdAt",
-      header: () => "Created at",
-      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
+      accessorKey: "date",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Created At")}
+        </Button>
+      ),
+      cell: ({ row }) => <span>{ParseDate(row.original.date)}</span>,
+      enableGlobalFilter: true,
     },
     {
       accessorKey: "remarks",
-      header: () => "Remarks",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Remarks")}
+        </Button>
+      ),
       cell: ({ row }) => row.original.remarks,
+      enableGlobalFilter: true,
     },
     {
       accessorKey: "status",
-      header: () => "Status",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Status")}
+        </Button>
+      ),
       cell: ({ row }) => row.original.status,
+      enableGlobalFilter: true,
     },
     {
       id: "actions",
@@ -592,7 +589,6 @@ function InventoryPage() {
               item_width: "",
               item_lw_unit: "cm",
               weight: "",
-              quantity: "",
               remarks: "",
               status: "active",
             });
@@ -637,11 +633,6 @@ function InventoryPage() {
                           {prod.category && (
                             <Badge className="ml-2" variant="outline">
                               {prod.category}
-                            </Badge>
-                          )}
-                          {prod.type && (
-                            <Badge className="ml-2" variant="secondary">
-                              {prod.type}
                             </Badge>
                           )}
                         </span>
@@ -691,11 +682,6 @@ function InventoryPage() {
                               {prod.category && (
                                 <Badge className="ml-2" variant="outline">
                                   {prod.category}
-                                </Badge>
-                              )}
-                              {prod.type && (
-                                <Badge className="ml-2" variant="secondary">
-                                  {prod.type}
                                 </Badge>
                               )}
                             </span>
@@ -788,21 +774,6 @@ function InventoryPage() {
                 <Input type="number" value={calcBundleWeight()} disabled />
               </div>
             )}
-            {/* Quantity field */}
-            <div className="grid gap-2">
-              <Label>Quantity</Label>
-              <Input
-                type="number"
-                value={form.quantity}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, quantity: e.target.value }))
-                }
-                placeholder="Enter quantity"
-              />
-              {errors.quantity && (
-                <p className="text-sm text-red-500">{errors.quantity}</p>
-              )}
-            </div>
             <div className="grid gap-2">
               <Label htmlFor="remarks">Remarks</Label>
               <Input
@@ -853,7 +824,6 @@ function InventoryPage() {
                   item_width: "",
                   item_lw_unit: "cm",
                   weight: "",
-                  quantity: "",
                   remarks: "",
                   status: "active",
                 });

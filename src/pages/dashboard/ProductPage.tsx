@@ -60,6 +60,18 @@ import {
 import { Category, getCategories } from "../../services/category";
 import ParseDate from "@/utils/parseDate.ts";
 import { useTranslation } from "react-i18next";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 function ProductPage() {
   const { t } = useTranslation();
@@ -74,24 +86,19 @@ function ProductPage() {
     category: "",
     type: "",
     gsm: "",
-    unit: "kg",
-    quantity: "",
-    price: "",
   });
   const [errors, setErrors] = useState<{
     name?: string;
     category?: string;
     type?: string;
     gsm?: string;
-    unit?: string;
-    quantity?: string;
-    price?: string;
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
   const {
     data: categories = [],
@@ -167,19 +174,6 @@ function ProductPage() {
       Number.parseFloat(formData.gsm) <= 0
     )
       newErrors.gsm = "GSM must be a valid positive number";
-    if (!formData.unit) newErrors.unit = "Unit is required";
-    if (!formData.quantity.trim()) newErrors.quantity = "Quantity is required";
-    else if (
-      isNaN(Number.parseFloat(formData.quantity)) ||
-      Number.parseFloat(formData.quantity) < 0
-    )
-      newErrors.quantity = "Quantity must be a valid number";
-    if (!formData.price.trim()) newErrors.price = "Price is required";
-    else if (
-      isNaN(Number.parseFloat(formData.price)) ||
-      Number.parseFloat(formData.price) < 0
-    )
-      newErrors.price = "Price must be a valid number";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -188,18 +182,21 @@ function ProductPage() {
     if (!validateForm()) return;
     setSubmitting(true);
     const payload = {
-      ...formData,
+      name: formData.name,
+      category: formData.category,
+      type: formData.type,
       gsm: Number.parseFloat(formData.gsm),
-      quantity: Number.parseFloat(formData.quantity),
-      price: Number.parseFloat(formData.price),
     };
-    if (editingProduct) {
-      await updateMutation.mutateAsync({ ...editingProduct, ...payload });
-    } else {
-      await createMutation.mutateAsync(payload);
+    try {
+      if (editingProduct) {
+        await updateMutation.mutateAsync({ ...editingProduct, ...payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      handleCloseDialog();
+    } finally {
+      setSubmitting(false);
     }
-    handleCloseDialog();
-    setSubmitting(false);
   };
 
   const handleEdit = (product: Product) => {
@@ -209,9 +206,6 @@ function ProductPage() {
       category: product.category,
       type: product.type || "",
       gsm: product.gsm?.toString() || "",
-      unit: product.unit || "kg",
-      quantity: product.quantity?.toString() || "",
-      price: product.price?.toString() || "",
     });
     setErrors({});
     setIsDialogOpen(true);
@@ -232,9 +226,6 @@ function ProductPage() {
       category: "",
       type: "",
       gsm: "",
-      unit: "kg",
-      quantity: "",
-      price: "",
     });
     setErrors({});
   };
@@ -249,9 +240,6 @@ function ProductPage() {
     formData.category &&
     formData.type.trim() &&
     formData.gsm.trim() &&
-    formData.unit &&
-    formData.quantity.trim() &&
-    formData.price.trim() &&
     Object.keys(errors).length === 0;
 
   const columns: ColumnDef<Product>[] = [
@@ -302,42 +290,6 @@ function ProductPage() {
         </Button>
       ),
       cell: ({ row }) => row.original.gsm,
-    },
-    {
-      accessorKey: "unit",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Unit
-        </Button>
-      ),
-      cell: ({ row }) => row.original.unit,
-    },
-    {
-      accessorKey: "quantity",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {t("Quantity")}
-        </Button>
-      ),
-      cell: ({ row }) => row.original.quantity,
-    },
-    {
-      accessorKey: "price",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {t("Price")}
-        </Button>
-      ),
-      cell: ({ row }) => row.original.price,
     },
     {
       accessorKey: "createdAt",
@@ -596,37 +548,78 @@ function ProductPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category: value }))
-                }
+              <Popover
+                open={categoryPopoverOpen}
+                onOpenChange={setCategoryPopoverOpen}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat: Category) => (
-                    <SelectItem key={cat._id || cat.name} value={cat.name}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => setCategoryPopoverOpen((v) => !v)}
+                  >
+                    {formData.category || "Select category"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[300px]">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search category..."
+                      value={formData.category}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, category: value }))
+                      }
+                    />
+                    <CommandList className="max-h-40 overflow-y-auto">
+                      {categories.length === 0 && (
+                        <CommandEmpty>No categories found.</CommandEmpty>
+                      )}
+                      {categories
+                        .filter((cat: Category) =>
+                          cat.name
+                            .toLowerCase()
+                            .includes(formData.category.toLowerCase())
+                        )
+                        .map((cat: Category) => (
+                          <CommandItem
+                            key={cat._id || cat.name}
+                            value={cat.name}
+                            onSelect={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                category: cat.name,
+                              }));
+                              setCategoryPopoverOpen(false);
+                            }}
+                          >
+                            {cat.name}
+                          </CommandItem>
+                        ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {errors.category && (
                 <p className="text-sm text-red-500">{errors.category}</p>
               )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="type">Type</Label>
-              <Input
-                id="type"
+              <Select
                 value={formData.type}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, type: e.target.value }))
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, type: value }))
                 }
-                placeholder="Enter product type"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reel">reel</SelectItem>
+                  <SelectItem value="bundle">bundle</SelectItem>
+                </SelectContent>
+              </Select>
               {errors.type && (
                 <p className="text-sm text-red-500">{errors.type}</p>
               )}
@@ -644,57 +637,6 @@ function ProductPage() {
               />
               {errors.gsm && (
                 <p className="text-sm text-red-500">{errors.gsm}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Select
-                value={formData.unit}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, unit: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kg">kg</SelectItem>
-                  <SelectItem value="reel">reel</SelectItem>
-                  <SelectItem value="ton">ton</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.unit && (
-                <p className="text-sm text-red-500">{errors.unit}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, quantity: e.target.value }))
-                }
-                placeholder="Enter quantity"
-              />
-              {errors.quantity && (
-                <p className="text-sm text-red-500">{errors.quantity}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                type="number"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, price: e.target.value }))
-                }
-                placeholder="Enter price"
-              />
-              {errors.price && (
-                <p className="text-sm text-red-500">{errors.price}</p>
               )}
             </div>
           </div>
