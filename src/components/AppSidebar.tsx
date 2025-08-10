@@ -11,6 +11,9 @@ import {
   Building2,
   LogOut,
   User2,
+  Settings,
+  HelpCircle,
+  Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -24,11 +27,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { getCurrentUser, logout } from "@/services/auth"; // <-- Add these in your auth.ts
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { LanguageToggleButton } from "./LanguageToggleButton";
+import { NavSecondary } from "@/components/NavSecondary";
+import { NavUser } from "@/components/NavUser";
 
 const menuItems = [
   {
@@ -56,6 +62,24 @@ const menuItems = [
   //   url: "/customers",
   //   icon: Users,
   // },
+];
+
+const navSecondary = [
+  {
+    title: "Settings",
+    url: "#",
+    icon: Settings,
+  },
+  {
+    title: "Get Help",
+    url: "#",
+    icon: HelpCircle,
+  },
+  {
+    title: "Search",
+    url: "#",
+    icon: Search,
+  },
 ];
 
 export function AppSidebar() {
@@ -108,6 +132,9 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      </SidebarContent>
+      <SidebarContent>
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarRail />
       {/* User Panel */}

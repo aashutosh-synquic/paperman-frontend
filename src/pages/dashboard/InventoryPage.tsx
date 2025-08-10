@@ -90,7 +90,7 @@ function InventoryPage() {
     item_lw_unit: "cm" | "inch";
     weight: string;
     quantity: string;
-    remarks: string;
+    quality: string;
     status: "active" | "inactive";
   }>({
     productId: "",
@@ -99,7 +99,7 @@ function InventoryPage() {
     item_lw_unit: "cm",
     weight: "",
     quantity: "",
-    remarks: "",
+    quality: "",
     status: "active",
   });
 
@@ -231,7 +231,7 @@ function InventoryPage() {
       item_length: Number(form.item_length),
       item_width: Number(form.item_width),
       item_lw_unit: form.item_lw_unit,
-      remarks: form.remarks,
+      quality: form.quality,
       status: "active",
       date: todayStr,
       quantity: Number(form.quantity),
@@ -257,7 +257,7 @@ function InventoryPage() {
       item_lw_unit: "cm",
       weight: "",
       quantity: "",
-      remarks: "",
+      quality: "",
       status: "active",
     });
     setProductSearch("");
@@ -275,7 +275,7 @@ function InventoryPage() {
       item_lw_unit: inv.item_lw_unit,
       weight: inv.weight?.toString() || "",
       quantity: inv.quantity?.toString() || "",
-      remarks: inv.remarks,
+      quality: inv.quality?.toString() || "",
       status: inv.status,
     });
     setErrors({});
@@ -350,14 +350,14 @@ function InventoryPage() {
       cell: ({ row }) => row.original.quantity,
     },
     {
+      accessorKey: "quality",
+      header: () => "Quality",
+      cell: ({ row }) => row.original.quality,
+    },
+    {
       accessorKey: "createdAt",
       header: () => "Created at",
       cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
-    },
-    {
-      accessorKey: "remarks",
-      header: () => "Remarks",
-      cell: ({ row }) => row.original.remarks,
     },
     {
       accessorKey: "status",
@@ -593,7 +593,7 @@ function InventoryPage() {
               item_lw_unit: "cm",
               weight: "",
               quantity: "",
-              remarks: "",
+              quality: "",
               status: "active",
             });
             setErrors({});
@@ -804,15 +804,15 @@ function InventoryPage() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="remarks">Remarks</Label>
+              <Label htmlFor="quality">Quality</Label>
               <Input
-                id="remarks"
+                id="quality"
                 type="text"
-                value={form.remarks}
+                value={form.quality}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, remarks: e.target.value }))
+                  setForm((prev) => ({ ...prev, quality: e.target.value }))
                 }
-                placeholder="Remarks"
+                placeholder="Quality"
               />
             </div>
             {editingItem && (
@@ -854,7 +854,7 @@ function InventoryPage() {
                   item_lw_unit: "cm",
                   weight: "",
                   quantity: "",
-                  remarks: "",
+                  quality: "",
                   status: "active",
                 });
                 setErrors({});

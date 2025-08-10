@@ -267,18 +267,18 @@ function ProductPage() {
       ),
       cell: ({ row }) => row.original.category,
     },
-    {
-      accessorKey: "type",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          {t("Type")}
-        </Button>
-      ),
-      cell: ({ row }) => row.original.type,
-    },
+    // {
+    //   accessorKey: "type",
+    //   header: ({ column }) => (
+    //     <Button
+    //       variant="ghost"
+    //       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    //     >
+    //       {t("Type")}
+    //     </Button>
+    //   ),
+    //   cell: ({ row }) => row.original.type,
+    // },
     {
       accessorKey: "gsm",
       header: ({ column }) => (

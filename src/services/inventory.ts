@@ -7,7 +7,7 @@ export interface Inventory {
   productId: string;
   quantity: number;
   createdAt: string;
-  remarks?: string;
+  quality?: string;
   status: "active" | "inactive";
 }
 
