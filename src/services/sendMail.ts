@@ -1,6 +1,6 @@
 import { apiUrl } from '@/services/index';
 
-// Send quote request
+// Send quote request (should also create a lead/enquiry)
 export const sendQuoteRequest = async (payload: {
   name: string;
   phone: string;
@@ -8,10 +8,18 @@ export const sendQuoteRequest = async (payload: {
   company: string;
   items: any[];
 }) => {
-  const response = await fetch(`${apiUrl}/quote`, {
+  // Send to /enquiry with quote as payload
+  const response = await fetch(`${apiUrl}/enquiry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      name: payload.name,
+      phone: payload.phone,
+      email: payload.email,
+      company: payload.company,
+      message: 'Quote Request',
+      quote: { items: payload.items },
+    }),
   });
   if (!response.ok) {
     throw new Error('Failed to send quote request');
@@ -19,13 +27,14 @@ export const sendQuoteRequest = async (payload: {
   return response.json();
 };
 
-// Send general enquiry
-export const sendEnquiry = async (payload: {
+// Send general enquiry (lead)
+export const createEnquiryLead = async (payload: {
   name: string;
   phone: string;
   email: string;
   company: string;
   message: string;
+  quote?: any;
 }) => {
   const response = await fetch(`${apiUrl}/enquiry`, {
     method: 'POST',
@@ -33,7 +42,7 @@ export const sendEnquiry = async (payload: {
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error('Failed to send enquiry');
+    throw new Error('Failed to create enquiry');
   }
   return response.json();
 };

@@ -2,17 +2,17 @@
 import { auth } from "../../firebaseConfig";
 import { apiUrl } from '@/services/index';
 
-const baseUrl = apiUrl + '/users';
+const baseUrl = apiUrl + '/customers';
 
 export interface BaseCustomer {
-    username: string;
-    firstname: string;
-    lastname: string;
-    age: number;
-    dob: string;
-    contactNumber: string;
-    aadharNo: string;
-    panNo: string;
+    firstName: string
+    lastName:  string
+    companyName: string
+    phone: string 
+    email: string 
+    gstNumber: string 
+    address: string 
+    enquiries: object
 }
 
 export interface CustomerView extends BaseCustomer {

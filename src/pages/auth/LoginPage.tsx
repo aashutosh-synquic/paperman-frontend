@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -37,22 +36,30 @@ export default function LoginPage() {
       setError(null);
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/dashboard");
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle Firebase error or custom error object
       if (
-        err?.message === "INVALID_LOGIN_CREDENTIALS" ||
-        err?.code === 400 ||
-        err?.code === "auth/invalid-credential"
+        typeof err === "object" &&
+        err !== null &&
+        ("message" in err || "code" in err)
       ) {
-        setError(t("Invalid email or password."));
-      } else if (err?.message === "INVALID_LOGIN_CREDENTIALS") {
-        setError(t("Invalid email or password."));
-      } else if (err instanceof Error) {
-        // Hide technical Firebase error from user
-        if (err.message.includes("auth/invalid-credential")) {
+        const message = (err as { message?: string }).message;
+        const code = (err as { code?: number | string }).code;
+        if (
+          message === "INVALID_LOGIN_CREDENTIALS" ||
+          code === 400 ||
+          code === "auth/invalid-credential"
+        ) {
           setError(t("Invalid email or password."));
+        } else if (err instanceof Error) {
+          // Hide technical Firebase error from user
+          if (err.message.includes("auth/invalid-credential")) {
+            setError(t("Invalid email or password."));
+          } else {
+            setError(err.message);
+          }
         } else {
-          setError(err.message);
+          setError(t("An unknown error occurred."));
         }
       } else {
         setError(t("An unknown error occurred."));

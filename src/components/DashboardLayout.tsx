@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-15 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -62,6 +62,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <LanguageToggleButton />
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
+        <footer className="border-t px-4 py-0 text-xs text-muted-foreground text-center">
+          © {new Date().getFullYear()} Parashwanath Enterprises. Made by{" "}
+          <a
+            href="https://synquic.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-500 hover:underline"
+          >
+            Synquic
+          </a>
+          .
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   );

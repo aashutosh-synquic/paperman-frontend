@@ -1,37 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogFooter,
+  AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Loader2, Mail, Phone } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+// import { Badge } from "@/components/ui/badge";
+import { Plus, Edit, Loader2, Mail, Phone, Eye } from "lucide-react";
+import { toast } from "sonner";
 import {
   flexRender,
   getCoreRowModel,
@@ -46,6 +46,14 @@ import {
   RowSelectionState,
 } from "@tanstack/react-table";
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -57,18 +65,24 @@ import {
   updateCustomer,
   deleteCustomer,
   CustomerView,
-} from "../../services/user";
+  BaseCustomer,
+} from "../../services/customers";
 import ParseDate from "@/utils/parseDate.ts";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
-interface FormErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-}
+// Add a narrow extension type to avoid any casts
+type CustomerExtended = CustomerView &
+  Partial<{
+    gstNumber: string;
+    address: string;
+    orders: string[];
+  }>;
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<CustomerView[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerView | null>(
@@ -78,210 +92,184 @@ export default function CustomersPage() {
     null
   );
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState<CustomerFormData>({
-    name: "",
-    email: "",
+  // Align form data with services/customers BaseCustomer shape (include required fields)
+  const [formData, setFormData] = useState<BaseCustomer>({
+    firstName: "",
+    lastName: "",
+    companyName: "",
     phone: "",
-    status: "active",
+    email: "",
+    gstNumber: "",
+    address: "",
+    enquiries: [],
   });
-  const [errors, setErrors] = useState<FormErrors>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const { toast } = useToast();
+  const [viewCustomer, setViewCustomer] = useState<CustomerView | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const loadCustomers = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchCustomers();
-      setCustomers(data);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load customers",
-        variant: "destructive",
+  // Data fetching via TanStack Query
+  const {
+    data: customers = [],
+    isLoading,
+    error,
+  } = useQuery({ queryKey: ["customers"], queryFn: fetchCustomers });
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: (data: BaseCustomer) => createCustomer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Created", { description: "Customer added successfully" });
+    },
+    onError: () =>
+      toast.error("Error", { description: "Failed to create customer" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: { _id: string } & BaseCustomer) =>
+      updateCustomer(payload._id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Updated", {
+        description: "Customer updated successfully",
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onError: () =>
+      toast.error("Error", { description: "Failed to update customer" }),
+  });
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  // const validateForm = (): boolean => {
-  //   const newErrors: FormErrors = {};
-  //   if (!formData.name.trim()) newErrors.name = "Name is required";
-  //   if (!formData.email.trim()) {
-  //     newErrors.email = "Email is required";
-  //   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-  //     newErrors.email = "Enter a valid email address";
-  //   }
-  //   if (!formData.phone.trim()) newErrors.phone = "Phone is required";
-  //   setErrors(newErrors);
-  //   return Object.keys(newErrors).length === 0;
-  // };
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Deleted", {
+        description: "Customer deleted successfully",
+      });
+    },
+    onError: () =>
+      toast.error("Error", { description: "Failed to delete customer" }),
+  });
 
   const handleSubmit = async () => {
-    // if (!validateForm()) return;
-
     try {
       setSubmitting(true);
-      let result: Customer;
       if (editingCustomer) {
-        result = await updateCustomer(editingCustomer._id, formData);
-        setCustomers((prev) =>
-          prev.map((cust) => (cust._id === editingCustomer._id ? result : cust))
-        );
-        toast({
-          title: "Updated",
-          description: "Customer updated successfully",
+        await updateMutation.mutateAsync({
+          _id: editingCustomer._id,
+          ...formData,
         });
       } else {
-        result = await createCustomer(formData);
-        setCustomers((prev) => [...prev, result]);
-        toast({ title: "Created", description: "Customer added successfully" });
+        await createMutation.mutateAsync(formData);
       }
       handleCloseDialog();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save customer",
-        variant: "destructive",
-      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEdit = (customer: Customer) => {
+  const handleEdit = (customer: CustomerView) => {
     setEditingCustomer(customer);
+    const c = customer as CustomerExtended;
     setFormData({
-      name: customer.firstname + " " + customer.lastname,
-      email: customer.username,
-      phone: customer.contactNumber,
-      status: "active", // assuming active by default
+      firstName: customer.firstName ?? "",
+      lastName: customer.lastName ?? "",
+      companyName: customer.companyName ?? "",
+      phone: customer.phone ?? "",
+      email: customer.email ?? "",
+      gstNumber: c.gstNumber ?? "",
+      address: c.address ?? "",
+      enquiries: Array.isArray(customer.enquiries)
+        ? (customer.enquiries as string[])
+        : [],
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async () => {
     if (!deletingCustomer) return;
-    try {
-      await deleteCustomer(deletingCustomer._id);
-      setCustomers((prev) =>
-        prev.filter((c) => c._id !== deletingCustomer._id)
-      );
-      toast({ title: "Deleted", description: "Customer deleted successfully" });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete customer",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setDeletingCustomer(null);
-    }
+    await deleteMutation.mutateAsync(deletingCustomer._id);
+    setIsDeleteDialogOpen(false);
+    setDeletingCustomer(null);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingCustomer(null);
-    setFormData({ name: "", email: "", phone: "", status: "active" });
-    setErrors({});
+    setFormData({
+      firstName: "",
+      lastName: "",
+      companyName: "",
+      phone: "",
+      email: "",
+      gstNumber: "",
+      address: "",
+      enquiries: [],
+    });
   };
 
-  const openDeleteDialog = (customer: Customer) => {
-    setDeletingCustomer(customer);
-    setIsDeleteDialogOpen(true);
-  };
-
-  // const isFormValid =
-  //   formData.name.trim() &&
-  //   formData.email.trim() &&
-  //   formData.phone.trim() &&
-  //   Object.keys(errors).length === 0;
-
-  // TanStack Table columns
-  const columns: ColumnDef<Customer>[] = [
+  // Table columns
+  const columns: ColumnDef<CustomerView>[] = [
     {
-      accessorKey: "firstname",
+      accessorKey: "firstName",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          First Name
+          {t("Name")}
         </Button>
       ),
-      cell: ({ row }) => row.original.firstname,
+      cell: ({ row }) =>
+        row.original.firstName + " " + row.original.lastName || "-",
     },
     {
-      accessorKey: "lastname",
+      accessorKey: "companyName",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Last Name
+          {t("Company")}
         </Button>
       ),
-      cell: ({ row }) => row.original.lastname,
+      cell: ({ row }) => row.original.companyName || "-",
     },
     {
-      accessorKey: "username",
+      accessorKey: "phone",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Email (Username)
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="w-3 h-3" />
-          {row.original.username}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "contactNumber",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Contact Number
+          {t("Phone")}
         </Button>
       ),
       cell: ({ row }) => (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Phone className="w-3 h-3" />
-          {row.original.contactNumber}
+          {row.original.phone || "-"}
         </div>
       ),
     },
     {
-      accessorKey: "status",
+      accessorKey: "email",
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Status
+          {t("Email")}
         </Button>
       ),
       cell: ({ row }) => (
-        <Badge
-          variant={row.original.status === "active" ? "default" : "secondary"}
-        >
-          {row.original.status === "active" ? "Active" : "Inactive"}
-        </Badge>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Mail className="w-3 h-3" />
+          {row.original.email || "-"}
+        </div>
       ),
     },
     {
@@ -291,14 +279,48 @@ export default function CustomersPage() {
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Created
+          {t("Created At")}
         </Button>
       ),
       cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
     },
     {
+      accessorKey: "enquiries",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Enquiries")}
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const leads = Array.isArray(row.original.enquiries)
+          ? (row.original.enquiries as string[])
+          : [];
+        return <span>{leads.length}</span>;
+      },
+    },
+    {
+      accessorKey: "orders",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          {t("Orders")}
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const orders = Array.isArray((row.original as CustomerExtended).orders)
+          ? ((row.original as CustomerExtended).orders as string[])
+          : [];
+        return <span>{orders.length}</span>;
+      },
+    },
+    {
       id: "actions",
-      header: () => <span className="text-right">Actions</span>,
+      header: () => <span className="text-right">{t("Actions")}</span>,
       cell: ({ row }) => (
         <div className="text-right space-x-2">
           <Button
@@ -308,12 +330,22 @@ export default function CustomersPage() {
           >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button
+          {/* <Button
             variant="outline"
             size="icon"
             onClick={() => openDeleteDialog(row.original)}
           >
             <Trash2 className="w-4 h-4" />
+          </Button> */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setViewCustomer(row.original);
+              setModalOpen(true);
+            }}
+          >
+            <Eye className="w-4 h-4" />
           </Button>
         </div>
       ),
@@ -342,24 +374,31 @@ export default function CustomersPage() {
     globalFilterFn: "includesString",
   });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
+  if (error) {
+    return <div>Error loading customers</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
-          <p className="text-muted-foreground">Manage your customer database</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("Customers")}
+          </h1>
+          <p className="text-muted-foreground">
+            {t("Manage your customer database")}
+          </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add New Customer
+          {t("Add New Customer")}
         </Button>
       </div>
 
@@ -373,86 +412,101 @@ export default function CustomersPage() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-md border">
-        <table className="w-full border-separate border-spacing-0">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr
-                key={headerGroup.id}
-                className="bg-muted/40 border-b border-gray-200"
-              >
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={
-                      "px-4 py-2 text-left font-medium text-sm text-muted-foreground border-b border-gray-200" +
-                      (header.column.id === "actions" ? " text-right" : "")
-                    }
-                    style={{
-                      background: "#f9fafb",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-200">
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="px-4 py-2 text-sm border-b border-gray-200"
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+      {/* Only the table scrolls horizontally */}
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted ">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      className={cn(
+                        "px-2 py-1.5 text-left font-medium text-xs sm:text-sm text-muted-foreground border-b border-gray-200 whitespace-nowrap",
+                        header.column.id === "actions" && "w-24 text-right",
+                        (header.column.id === "enquiries" ||
+                          header.column.id === "orders") &&
+                          "px-2 w-16 text-center"
                       )}
-                    </td>
+                      style={{
+                        background: "#f9fafb",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
                   ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="h-24 text-center border-b border-gray-200"
-                >
-                  No results.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody className="[&_[data-slot=table-cell]:first-child]:w-8">
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className="border-b border-gray-200 hover:bg-muted/30 transition-colors"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "px-2 py-1.5 text-xs sm:text-sm border-b border-gray-200 whitespace-nowrap",
+                          cell.column.id === "actions" && "w-24",
+                          (cell.column.id === "enquiries" ||
+                            cell.column.id === "orders") &&
+                            "px-2 w-16 text-center tabular-nums"
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center border-b border-gray-200"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-2">
+        <div className="hidden flex-1 text-sm lg:flex">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Label htmlFor="rows-per-page" className="text-sm font-medium">
+              Rows per page
+            </Label>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
                 table.setPageSize(Number(value));
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                 <SelectValue
                   placeholder={table.getState().pagination.pageSize}
                 />
               </SelectTrigger>
               <SelectContent side="top">
-                {[5, 10, 20].map((pageSize) => (
+                {[10, 20, 30, 40, 50].map((pageSize) => (
                   <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>
@@ -460,15 +514,17 @@ export default function CustomersPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+        </div>
+        <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="flex w-fit items-center justify-center text-sm font-medium">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
             {table.getPageCount()}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
             <Button
               variant="outline"
               size="icon"
-              className="hidden size-8 lg:flex"
+              className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
             >
@@ -524,128 +580,55 @@ export default function CustomersPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>First Name</Label>
+              <Label>Name</Label>
               <Input
-                value={formData.firstname}
+                value={formData.firstName}
                 onChange={(e) =>
-                  setFormData({ ...formData, firstname: e.target.value })
+                  setFormData({ ...formData, firstName: e.target.value })
                 }
               />
-              {errors.firstname && (
-                <p className="text-sm text-red-500">{errors.firstname}</p>
-              )}
             </div>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label>Last Name</Label>
               <Input
-                value={formData.lastname}
+                value={formData.lastName}
                 onChange={(e) =>
-                  setFormData({ ...formData, lastname: e.target.value })
+                  setFormData({ ...formData, lastName: e.target.value })
                 }
               />
-              {errors.lastname && (
-                <p className="text-sm text-red-500">{errors.lastname}</p>
-              )}
+            </div> */}
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Input
+                value={formData.companyName}
+                onChange={(e) =>
+                  setFormData({ ...formData, companyName: e.target.value })
+                }
+              />
             </div>
             <div className="space-y-2">
-              <Label>Email (Username)</Label>
+              <Label>Phone</Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
               <Input
                 type="email"
-                value={formData.username}
+                value={formData.email}
                 onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
+                  setFormData({ ...formData, email: e.target.value })
                 }
               />
-              {errors.username && (
-                <p className="text-sm text-red-500">{errors.username}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Contact Number</Label>
-              <Input
-                value={formData.contactNumber}
-                onChange={(e) =>
-                  setFormData({ ...formData, contactNumber: e.target.value })
-                }
-              />
-              {errors.contactNumber && (
-                <p className="text-sm text-red-500">{errors.contactNumber}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>DOB</Label>
-              <Input
-                type="date"
-                value={formData.dob}
-                onChange={(e) =>
-                  setFormData({ ...formData, dob: e.target.value })
-                }
-              />
-              {errors.dob && (
-                <p className="text-sm text-red-500">{errors.dob}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Age</Label>
-              <Input
-                type="number"
-                value={formData.age}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    age: parseInt(e.target.value) || 0,
-                  })
-                }
-              />
-              {errors.age && (
-                <p className="text-sm text-red-500">{errors.age}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Aadhar Number</Label>
-              <Input
-                value={formData.aadharNo}
-                onChange={(e) =>
-                  setFormData({ ...formData, aadharNo: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>PAN Number</Label>
-              <Input
-                value={formData.panNo}
-                onChange={(e) =>
-                  setFormData({ ...formData, panNo: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    status: value as "active" | "inactive",
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting} //!isFormValid
-            >
+            <Button onClick={handleSubmit} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingCustomer ? "Update Customer" : "Add Customer"}
             </Button>
@@ -672,6 +655,100 @@ export default function CustomersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Customer Info Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("Customer Details")}</DialogTitle>
+          </DialogHeader>
+          {viewCustomer && (
+            <div className="space-y-2">
+              <div>
+                <span className="font-semibold">{t("Name")}:</span>{" "}
+                {viewCustomer.firstName + " " + viewCustomer.lastName}
+              </div>
+              {/* <div>
+                <span className="font-semibold">Last Name:</span>{" "}
+                {viewCustomer.lastName}
+              </div> */}
+              <div>
+                <span className="font-semibold">{t("Company")}:</span>{" "}
+                {viewCustomer.companyName}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Phone")}:</span>{" "}
+                {viewCustomer.phone}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Email")}:</span>{" "}
+                {viewCustomer.email}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Enquiries")}:</span>{" "}
+                {(() => {
+                  const enquiries = Array.isArray(viewCustomer.enquiries)
+                    ? (viewCustomer.enquiries as string[])
+                    : [];
+                  return enquiries.length > 0
+                    ? enquiries.map((id: string, idx: number) => (
+                        <span key={id}>
+                          <a
+                            href={`/dashboard/leads?id=${id}`}
+                            className="text-blue-600 underline"
+                          >
+                            {id.slice(-5)}
+                          </a>
+                          {idx < enquiries.length - 1 ? ", " : ""}
+                        </span>
+                      ))
+                    : "-";
+                })()}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Orders")}:</span>{" "}
+                {(() => {
+                  const orders = Array.isArray(
+                    (viewCustomer as CustomerExtended).orders
+                  )
+                    ? ((viewCustomer as CustomerExtended).orders as string[])
+                    : [];
+                  return orders.length > 0
+                    ? orders.map((id: string, idx: number) => (
+                        <span key={id}>
+                          <a
+                            href={`/dashboard/orders?id=${id}`}
+                            className="text-green-600 underline"
+                          >
+                            {id.slice(-5)}
+                          </a>
+                          {idx < orders.length - 1 ? ", " : ""}
+                        </span>
+                      ))
+                    : "-";
+                })()}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Created At")}:</span>{" "}
+                {viewCustomer.createdAt
+                  ? new Date(viewCustomer.createdAt).toLocaleString()
+                  : "-"}
+              </div>
+              <div>
+                <span className="font-semibold">{t("Updated At")}:</span>{" "}
+                {viewCustomer.updatedAt
+                  ? new Date(viewCustomer.updatedAt).toLocaleString()
+                  : "-"}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setModalOpen(false)}>
+                  {t("Close")}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

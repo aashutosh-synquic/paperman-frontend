@@ -49,7 +49,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Product,
   getProducts,
@@ -72,11 +72,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
 
 function ProductPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -122,29 +129,24 @@ function ProductPage() {
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "Success", description: "Product created successfully" });
+      toast.success("Success", { description: "Product created successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create product",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to create product" });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: any) => updateProduct(payload._id, payload),
+    mutationFn: (payload: unknown) => {
+      const p = payload as { _id: string } & Product;
+      return updateProduct(p._id, p);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "Success", description: "Product updated successfully" });
+      toast.success("Success", { description: "Product updated successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update product",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to update product" });
     },
   });
 
@@ -152,14 +154,10 @@ function ProductPage() {
     mutationFn: (id: string) => deleteProduct(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "Success", description: "Product deleted successfully" });
+      toast.success("Success", { description: "Product deleted successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete product",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to delete product" });
     },
   });
 
@@ -213,7 +211,7 @@ function ProductPage() {
 
   const handleDelete = async () => {
     if (!deletingProduct) return;
-    await deleteMutation.mutateAsync(deletingProduct._id);
+    await deleteMutation.mutateAsync(deletingProduct._id!);
     setIsDeleteDialogOpen(false);
     setDeletingProduct(null);
   };
@@ -301,7 +299,7 @@ function ProductPage() {
           {t("Created At")}
         </Button>
       ),
-      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => <span>{ParseDate(row.original.createdAt ?? "")}</span>,
     },
     {
       id: "actions",
@@ -384,65 +382,53 @@ function ProductPage() {
       </div>
 
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full border-separate border-spacing-0">
-          <thead>
+        {/* Replaced native table with shadcn Table for better UI */}
+        <Table>
+          <TableHeader className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr
-                key={headerGroup.id}
-                className="bg-muted/40 border-b border-gray-200"
-              >
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={
-                      "px-4 py-2 text-left font-medium text-sm text-muted-foreground border-b border-gray-200" +
-                      (header.column.id === "actions" ? " text-right" : "")
-                    }
-                    style={{
-                      background: "#f9fafb",
-                      fontWeight: 500,
-                    }}
-                  >
+                  <TableHead key={header.id} colSpan={header.colSpan}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
                           header.getContext()
                         )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
-          <tbody>
+          </TableHeader>
+          <TableBody className="[&_[data-slot=table-cell]:first-child]:w-8">
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-200">
+                <TableRow
+                  key={row.id}
+                  className="hover:bg-muted/30 transition-colors"
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="px-4 py-2 text-sm border-b border-gray-200"
-                    >
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
                       )}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center border-b border-gray-200"
+                  className="h-24 text-center"
                 >
                   No results.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination Controls */}
@@ -462,7 +448,7 @@ function ProductPage() {
                 />
               </SelectTrigger>
               <SelectContent side="top">
-                {[5, 10, 20].map((pageSize) => (
+                {[10, 20, 30, 40, 50].map((pageSize) => (
                   <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>

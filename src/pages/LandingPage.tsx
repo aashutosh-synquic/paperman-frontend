@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -14,18 +15,63 @@ import {
   MapPin,
 } from "lucide-react";
 import { Link } from "react-router";
-//
-import img1 from "../../public/paperreel.png";
-import img2 from "../../public/factorymanufactoring.png";
-import img3 from "../../public/factoryqc.png";
-import img4 from "../../public/factoryteamcollab.png";
-import img5 from "../../public/factoryecofriendly.png";
-import img6 from "../../public/factorymanufactoring.png";
-import img7 from "../../public/standardpaperreel.png";
-import img8 from "../../public/premiumpaperreel.png";
-import img9 from "../../public/paperreams.png";
+import { createEnquiryLead } from "@/services/sendMail";
+import { toast } from "sonner";
 
 export default function LandingPage() {
+  const [enquiryForm, setEnquiryForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    company: "",
+    message: "",
+  });
+  const [enquirySubmitting, setEnquirySubmitting] = useState(false);
+  const [enquiryError, setEnquiryError] = useState<string | null>(null);
+  const [enquirySuccess, setEnquirySuccess] = useState<string | null>(null);
+
+  const handleEnquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnquiryError(null);
+    setEnquirySuccess(null);
+    const name = `${enquiryForm.firstName} ${enquiryForm.lastName}`.trim();
+    if (
+      !name ||
+      !enquiryForm.phone.trim() ||
+      !enquiryForm.email.trim() ||
+      !enquiryForm.company.trim() ||
+      !enquiryForm.message.trim()
+    ) {
+      setEnquiryError("Please fill all fields.");
+      toast.error("Please fill all fields.");
+      return;
+    }
+    setEnquirySubmitting(true);
+    try {
+      await createEnquiryLead({
+        name,
+        phone: enquiryForm.phone,
+        email: enquiryForm.email,
+        company: enquiryForm.company,
+        message: enquiryForm.message,
+      });
+      setEnquirySuccess("Enquiry submitted! Our team will contact you soon.");
+      toast.success("Enquiry submitted! Our team will contact you soon.");
+      setEnquiryForm({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        company: "",
+        message: "",
+      });
+    } catch {
+      setEnquiryError("Failed to send enquiry. Please try again.");
+      toast.error("Failed to send enquiry. Please try again.");
+    }
+    setEnquirySubmitting(false);
+  };
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -64,7 +110,7 @@ export default function LandingPage() {
             </div>
             <div className="relative">
               <img
-                src={img1}
+                src={"/paperreel.png"}
                 alt="Paper reels manufacturing facility"
                 width={600}
                 height={500}
@@ -100,11 +146,11 @@ export default function LandingPage() {
                 Our Mission & Values
               </h3>
               <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                Parashwanath Enterprises is a leading manufacturer of sustainable paper reels,
-                committed to providing high-quality products while minimizing
-                environmental impact. Our mission is to deliver reliable,
-                eco-friendly paper solutions that meet the diverse needs of our
-                customers worldwide.
+                Parashwanath Enterprises is a leading manufacturer of
+                sustainable paper reels, committed to providing high-quality
+                products while minimizing environmental impact. Our mission is
+                to deliver reliable, eco-friendly paper solutions that meet the
+                diverse needs of our customers worldwide.
               </p>
               <p className="text-gray-600 text-lg leading-relaxed mb-8">
                 We value sustainability, innovation, and customer satisfaction,
@@ -130,28 +176,28 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <img
-                src={img2}
+                src={"/factorymanufactoring.png"}
                 alt="Manufacturing facility"
                 width={300}
                 height={250}
                 className="rounded-lg shadow-lg"
               />
               <img
-                src={img3}
+                src={"/factoryqc.png"}
                 alt="Quality control process"
                 width={300}
                 height={250}
                 className="rounded-lg shadow-lg"
               />
               <img
-                src={img4}
+                src={"/factoryteamcollab.png"}
                 alt="Team collaboration"
                 width={300}
                 height={250}
                 className="rounded-lg shadow-lg"
               />
               <img
-                src={img5}
+                src={"/factoryecofriendly.png"}
                 alt="Eco-friendly manufacturing"
                 width={300}
                 height={250}
@@ -256,7 +302,7 @@ export default function LandingPage() {
             <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <div className="h-48 bg-gradient-to-br from-green-400 to-green-600 relative">
                 <img
-                  src={img7}
+                  src={"/standardpaperreel.png"}
                   alt="Standard Paper Reel"
                   className="absolute inset-0 w-full h-full object-cover opacity-20"
                 />
@@ -283,7 +329,7 @@ export default function LandingPage() {
             <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <div className="h-48 bg-gradient-to-br from-blue-400 to-blue-600 relative">
                 <img
-                  src={img8}
+                  src={"/premiumpaperreel.png"}
                   alt="Premium Paper Reel"
                   className="object-cover opacity-20"
                 />
@@ -310,7 +356,7 @@ export default function LandingPage() {
             <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <div className="h-48 bg-gradient-to-br from-amber-400 to-orange-600 relative">
                 <img
-                  src={img9}
+                  src={"/paperreams.png"}
                   alt="Eco-Friendly Paper Reel"
                   className="object-cover opacity-20"
                 />
@@ -384,8 +430,12 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-1">Email</h4>
-                    <p className="text-gray-600">info@Parashwanath Enterprises.com</p>
-                    <p className="text-gray-600">sales@Parashwanath Enterprises.com</p>
+                    <p className="text-gray-600">
+                      info@Parashwanath Enterprises.com
+                    </p>
+                    <p className="text-gray-600">
+                      sales@Parashwanath Enterprises.com
+                    </p>
                   </div>
                 </div>
 
@@ -411,36 +461,94 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-6">
                   Quick Inquiry
                 </h3>
-                <form className="space-y-4">
+                <form className="space-y-4" onSubmit={handleEnquirySubmit}>
                   <div className="grid grid-cols-2 gap-4">
                     <input
                       type="text"
                       placeholder="First Name"
+                      value={enquiryForm.firstName}
+                      onChange={(e) =>
+                        setEnquiryForm((f) => ({
+                          ...f,
+                          firstName: e.target.value,
+                        }))
+                      }
+                      required
+                      autoComplete="given-name"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                     <input
                       type="text"
                       placeholder="Last Name"
+                      value={enquiryForm.lastName}
+                      onChange={(e) =>
+                        setEnquiryForm((f) => ({
+                          ...f,
+                          lastName: e.target.value,
+                        }))
+                      }
+                      required
+                      autoComplete="family-name"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   </div>
                   <input
                     type="email"
                     placeholder="Email Address"
+                    value={enquiryForm.email}
+                    onChange={(e) =>
+                      setEnquiryForm((f) => ({ ...f, email: e.target.value }))
+                    }
+                    required
+                    autoComplete="email"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                   <input
                     type="tel"
                     placeholder="Phone Number"
+                    value={enquiryForm.phone}
+                    onChange={(e) =>
+                      setEnquiryForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                    required
+                    autoComplete="tel"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Company Name"
+                    value={enquiryForm.company}
+                    onChange={(e) =>
+                      setEnquiryForm((f) => ({ ...f, company: e.target.value }))
+                    }
+                    required
+                    autoComplete="organization"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />
                   <textarea
                     placeholder="Tell us about your requirements..."
                     rows={4}
+                    value={enquiryForm.message}
+                    onChange={(e) =>
+                      setEnquiryForm((f) => ({ ...f, message: e.target.value }))
+                    }
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   ></textarea>
-                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white py-3">
-                    Send Inquiry
+                  {enquiryError && (
+                    <div className="text-red-500 text-sm">{enquiryError}</div>
+                  )}
+                  {enquirySuccess && (
+                    <div className="text-green-600 text-sm">
+                      {enquirySuccess}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={enquirySubmitting}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+                  >
+                    {enquirySubmitting ? "Submitting..." : "Send Inquiry"}
                   </Button>
                 </form>
               </CardContent>

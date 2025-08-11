@@ -6,9 +6,14 @@ export interface Inventory {
   _id?: string;
   productId: string;
   quantity: number;
-  createdAt: string;
+  item_length: number;
+  item_width: number;
+  item_lw_unit: string;
+  weight?: number;
+  createdAt?: string;
+  updatedAt?: string;
   quality?: string;
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';
 }
 
 export const createInventory = async (inventoryData: Inventory) => {

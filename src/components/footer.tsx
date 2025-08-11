@@ -102,8 +102,16 @@ export function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 Parashwanath Enterprises. All rights reserved. | Sustainable
-            Manufacturing Solutions
+            © {new Date().getFullYear()} Parashwanath Enterprises. Made by{" "}
+            <a
+              href="https://synquic.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-500 hover:underline"
+            >
+              Synquic
+            </a>
+            .
           </p>
         </div>
       </div>

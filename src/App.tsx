@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 //
 import { AuthProvider } from "./providers/AuthProvider";
 import "./lib/i18n";
+import { Toaster } from "@/components/ui/sonner";
 //
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFoundComponent from "./components/NotFound";
@@ -15,10 +16,12 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import CategoryPage from "./pages/dashboard/CategoryPage";
 import ProductsPage from "./pages/dashboard/ProductPage";
 import InventoryPage from "./pages/dashboard/InventoryPage";
-// import CustomersPage from "./pages/CustomerPage";
+import CustomersPage from "./pages/dashboard/CustomerPage";
+import LeadsPage from "./pages/dashboard/LeadsPage";
 import DashboardLayout from "./components/DashboardLayout";
 import LandingPage from "./pages/LandingPage";
 import StockPage from "./pages/StockPage";
+import UsersPage from "./pages/dashboard/UsersPage";
 
 const router = createBrowserRouter([
   {
@@ -73,10 +76,18 @@ const router = createBrowserRouter([
         path: "/inventory",
         element: <InventoryPage />,
       },
-      // {
-      //   path: "/customers",
-      //   element: <CustomersPage />,
-      // },
+      {
+        path: "/customers",
+        element: <CustomersPage />,
+      },
+      {
+        path: "/enquiries",
+        element: <LeadsPage />,
+      },
+      {
+        path: "/users",
+        element: <UsersPage />,
+      },
     ],
   },
 ]);
@@ -88,6 +99,7 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
+        <Toaster richColors />
       </QueryClientProvider>
     </AuthProvider>
   );

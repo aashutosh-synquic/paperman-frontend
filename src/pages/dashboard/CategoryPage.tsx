@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Category,
   getCategories,
@@ -60,11 +60,18 @@ import {
 } from "@/components/ui/select";
 import ParseDate from "@/utils/parseDate.ts";
 import { useTranslation } from "react-i18next";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
 
 function CategoryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -97,14 +104,12 @@ function CategoryPage() {
     mutationFn: createCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category created successfully" });
+      toast.success("Success", {
+        description: "Category created successfully",
+      });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create category",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to create category" });
     },
   });
 
@@ -112,14 +117,12 @@ function CategoryPage() {
     mutationFn: ({ _id, ...data }: Category) => updateCategory(_id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category updated successfully" });
+      toast.success("Success", {
+        description: "Category updated successfully",
+      });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update category",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to update category" });
     },
   });
 
@@ -127,14 +130,12 @@ function CategoryPage() {
     mutationFn: (id: string) => deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({ title: "Success", description: "Category deleted successfully" });
+      toast.success("Success", {
+        description: "Category deleted successfully",
+      });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete category",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to delete category" });
     },
   });
 
@@ -171,7 +172,7 @@ function CategoryPage() {
 
   const handleDelete = async () => {
     if (!deletingCategory) return;
-    await deleteMutation.mutateAsync(deletingCategory._id);
+    await deleteMutation.mutateAsync(deletingCategory._id!);
     setIsDeleteDialogOpen(false);
     setDeletingCategory(null);
   };
@@ -230,7 +231,7 @@ function CategoryPage() {
           {t("Created At")}
         </Button>
       ),
-      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
+      cell: ({ row }) => <span>{ParseDate(row.original.createdAt ?? "")}</span>,
     },
     {
       id: "actions",
@@ -314,17 +315,15 @@ function CategoryPage() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-md border">
-        <table className="w-full border-separate border-spacing-0">
-          <thead>
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader className="bg-muted sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr
-                key={headerGroup.id}
-                className="bg-muted/40 border-b border-gray-200"
-              >
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
+                  <TableHead
                     key={header.id}
+                    colSpan={header.colSpan}
                     className={
                       "px-4 py-2 text-left font-medium text-sm text-muted-foreground border-b border-gray-200" +
                       (header.column.id === "actions" ? " text-right" : "")
@@ -340,17 +339,20 @@ function CategoryPage() {
                           header.column.columnDef.header,
                           header.getContext()
                         )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
-          <tbody>
+          </TableHeader>
+          <TableBody className="[&_[data-slot=table-cell]:first-child]:w-8">
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-200">
+                <TableRow
+                  key={row.id}
+                  className="border-b border-gray-200 hover:bg-muted/30 transition-colors"
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <td
+                    <TableCell
                       key={cell.id}
                       className="px-4 py-2 text-sm border-b border-gray-200"
                     >
@@ -358,42 +360,44 @@ function CategoryPage() {
                         cell.column.columnDef.cell,
                         cell.getContext()
                       )}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={columns.length}
                   className="h-24 text-center border-b border-gray-200"
                 >
                   No results.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-2">
+        <div className="hidden flex-1 text-sm lg:flex">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Label htmlFor="rows-per-page" className="text-sm font-medium">
+              Rows per page
+            </Label>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
                 table.setPageSize(Number(value));
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                 <SelectValue
                   placeholder={table.getState().pagination.pageSize}
                 />
               </SelectTrigger>
               <SelectContent side="top">
-                {[5, 10, 20].map((pageSize) => (
+                {[10, 20, 30, 40, 50].map((pageSize) => (
                   <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>
@@ -401,15 +405,16 @@ function CategoryPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+        </div>
+        <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="flex w-fit items-center justify-center text-sm font-medium">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
             {table.getPageCount()}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
             <Button
               variant="outline"
-              size="icon"
-              className="hidden size-8 lg:flex"
+              className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
             >
@@ -418,8 +423,8 @@ function CategoryPage() {
             </Button>
             <Button
               variant="outline"
-              size="icon"
               className="size-8"
+              size="icon"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
@@ -428,8 +433,8 @@ function CategoryPage() {
             </Button>
             <Button
               variant="outline"
-              size="icon"
               className="size-8"
+              size="icon"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
@@ -438,8 +443,8 @@ function CategoryPage() {
             </Button>
             <Button
               variant="outline"
-              size="icon"
               className="hidden size-8 lg:flex"
+              size="icon"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
             >

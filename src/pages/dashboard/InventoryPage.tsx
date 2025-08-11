@@ -73,7 +73,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 function InventoryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -103,7 +109,17 @@ function InventoryPage() {
     status: "active",
   });
 
-  const [errors, setErrors] = useState<any>({});
+  type InventoryFormErrors = {
+    productId?: string;
+    item_length?: string;
+    item_width?: string;
+    item_lw_unit?: string;
+    weight?: string;
+    quantity?: string;
+    quality?: string;
+    status?: string;
+  };
+  const [errors, setErrors] = useState<InventoryFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -137,7 +153,7 @@ function InventoryPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: any) => updateInventory(payload._id, payload),
+    mutationFn: (payload: Inventory) => updateInventory(payload._id!, payload),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["inventories"] }),
   });
@@ -155,7 +171,7 @@ function InventoryPage() {
 
   // Validation
   const validateForm = () => {
-    const newErrors: any = {};
+    const newErrors: InventoryFormErrors = {};
     if (!form.productId) newErrors.productId = "Product is required";
     if (
       !form.item_length ||
@@ -208,16 +224,6 @@ function InventoryPage() {
     return weight ? weight.toFixed(2) : "";
   };
 
-  const isFormValid =
-    form.productId &&
-    form.item_length &&
-    form.item_width &&
-    form.item_lw_unit &&
-    form.status &&
-    !isNaN(Number(form.item_length)) &&
-    !isNaN(Number(form.item_width)) &&
-    Object.keys(errors).length === 0;
-
   // Handle form submit
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -226,14 +232,14 @@ function InventoryPage() {
 
     const todayStr = new Date().toISOString();
 
-    let payload: any = {
+    const payload: Partial<Inventory> = {
       productId: form.productId,
       item_length: Number(form.item_length),
       item_width: Number(form.item_width),
       item_lw_unit: form.item_lw_unit,
       quality: form.quality,
       status: "active",
-      date: todayStr,
+      createdAt: todayStr,
       quantity: Number(form.quantity),
     };
 
@@ -272,7 +278,10 @@ function InventoryPage() {
       productId: inv.productId,
       item_length: inv.item_length?.toString() || "",
       item_width: inv.item_width?.toString() || "",
-      item_lw_unit: inv.item_lw_unit,
+      item_lw_unit:
+        inv.item_lw_unit === "cm" || inv.item_lw_unit === "inch"
+          ? inv.item_lw_unit
+          : "cm",
       weight: inv.weight?.toString() || "",
       quantity: inv.quantity?.toString() || "",
       quality: inv.quality?.toString() || "",
@@ -326,12 +335,12 @@ function InventoryPage() {
     },
     {
       accessorKey: "item_length",
-      header: () => "Length",
+      header: () => t("Length"),
       cell: ({ row }) => row.original.item_length,
     },
     {
       accessorKey: "item_width",
-      header: () => "Width",
+      header: () => t("Width"),
       cell: ({ row }) => row.original.item_width,
     },
     {
@@ -341,27 +350,27 @@ function InventoryPage() {
     },
     {
       accessorKey: "weight",
-      header: () => "Weight (kg)",
+      header: () => `${t("Weight")} (kg)`,
       cell: ({ row }) => row.original.weight,
     },
     {
       accessorKey: "quantity",
-      header: () => "Quantity",
+      header: () => t("Quantity"),
       cell: ({ row }) => row.original.quantity,
     },
     {
       accessorKey: "quality",
-      header: () => "Quality",
+      header: () => t("Quality"),
       cell: ({ row }) => row.original.quality,
     },
     {
       accessorKey: "createdAt",
-      header: () => "Created at",
-      cell: ({ row }) => <span>{ParseDate(row.original.createdAt)}</span>,
+      header: () => t("Created at"),
+      cell: ({ row }) => <span>{ParseDate(row.original.createdAt ?? "")}</span>,
     },
     {
       accessorKey: "status",
-      header: () => "Status",
+      header: () => t("Status"),
       cell: ({ row }) => row.original.status,
     },
     {
@@ -445,24 +454,31 @@ function InventoryPage() {
       </div>
 
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full border-separate border-spacing-0">
-          <thead>
+        {/* <table className="w-full border-separate border-spacing-0"> */}
+        {/* <thead> */}
+        <Table>
+          <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr
-                key={headerGroup.id}
-                className="bg-muted/40 border-b border-gray-200"
-              >
+              // <tr
+              //   key={headerGroup.id}
+              //   className="bg-muted/40 border-b border-gray-200"
+              // >
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
+                  // <th
+                  //   key={header.id}
+                  //   className={
+                  //     "px-4 py-2 text-left font-medium text-sm text-muted-foreground border-b border-gray-200" +
+                  //     (header.column.id === "actions" ? " text-right" : "")
+                  //   }
+                  //   style={{
+                  //     background: "#f9fafb",
+                  //     fontWeight: 500,
+                  //   }}
+                  // >
+                  <TableHead
                     key={header.id}
-                    className={
-                      "px-4 py-2 text-left font-medium text-sm text-muted-foreground border-b border-gray-200" +
-                      (header.column.id === "actions" ? " text-right" : "")
-                    }
-                    style={{
-                      background: "#f9fafb",
-                      fontWeight: 500,
-                    }}
+                    className="px-4 py-2 text-left font-medium text-sm text-muted-foreground"
                   >
                     {header.isPlaceholder
                       ? null
@@ -470,15 +486,16 @@ function InventoryPage() {
                           header.column.columnDef.header,
                           header.getContext()
                         )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
-          <tbody>
+          </TableHeader>
+          {/* <tbody> */}
+          <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-200">
+                <TableRow key={row.id} className="border-b border-gray-200">
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
@@ -490,20 +507,20 @@ function InventoryPage() {
                       )}
                     </td>
                   ))}
-                </tr>
+                </TableRow>
               ))
             ) : (
-              <tr>
+              <TableRow>
                 <td
                   colSpan={columns.length}
                   className="h-24 text-center border-b border-gray-200"
                 >
                   No results.
                 </td>
-              </tr>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination Controls */}
@@ -680,7 +697,7 @@ function InventoryPage() {
                             onSelect={() => {
                               setForm((prev) => ({
                                 ...prev,
-                                productId: prod._id,
+                                productId: prod._id ?? "",
                               }));
                               setProductPopoverOpen(false);
                               setProductSearch("");

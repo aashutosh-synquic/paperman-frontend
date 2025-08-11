@@ -9,11 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
-  Filter,
-  Eye,
   Package,
   TrendingUp,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { apiUrl } from "@/services/index";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,15 +24,60 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { sendQuoteRequest, sendEnquiry } from "@/services/sendMail";
+
+import { sendQuoteRequest, createEnquiryLead } from "@/services/sendMail";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
+
+// Lightweight type to represent selected inventory rows in the quote table
+// without over-constraining the existing data model
+type SelectedInventory = {
+  _invId: string;
+  product: {
+    name: string;
+    category: string;
+    type: string;
+    gsm: number | string;
+  };
+  item_length?: number | string;
+  item_width?: number | string;
+  item_lw_unit?: string;
+  weight: number;
+  quantity: number;
+  status?: string;
+};
 
 export default function StockPage() {
-  const [categories, setCategories] = useState<any[]>([]);
+  // Define Category and Product types for better type safety
+  type InventoryFromApi = {
+    _id: string;
+    item_length?: number | string;
+    item_width?: number | string;
+    item_lw_unit?: string;
+    weight: number;
+    quantity: number;
+    status?: string;
+  };
+
+  type Product = {
+    name: string;
+    category: string;
+    type: string;
+    gsm: number | string;
+    inventory?: InventoryFromApi[];
+  };
+
+  type Category = {
+    name: string;
+    products?: Product[];
+  };
+
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
-  const [selectedInventories, setSelectedInventories] = useState<any[]>([]);
+  const [selectedInventories, setSelectedInventories] = useState<
+    SelectedInventory[]
+  >([]);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({
     name: "",
@@ -44,6 +88,7 @@ export default function StockPage() {
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteSuccess, setQuoteSuccess] = useState<string | null>(null);
+  const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
   const [enquiryDialogOpen, setEnquiryDialogOpen] = useState(false);
   const [enquiryForm, setEnquiryForm] = useState({
     name: "",
@@ -67,6 +112,13 @@ export default function StockPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Auto-hide global success after a few seconds
+  useEffect(() => {
+    if (!globalSuccess) return;
+    const t = setTimeout(() => setGlobalSuccess(null), 5000);
+    return () => clearTimeout(t);
+  }, [globalSuccess]);
+
   // Flatten all products for stats and search/filter
   const allProducts = useMemo(
     () =>
@@ -78,24 +130,6 @@ export default function StockPage() {
       ),
     [categories]
   );
-
-  // For filter buttons
-  const categoryNames = useMemo(
-    () => ["All", ...categories.map((c) => c.name)],
-    [categories]
-  );
-
-  // Filtered products for table
-  const filteredProducts = useMemo(() => {
-    return allProducts.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.categoryName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "All" || item.categoryName === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [allProducts, searchTerm, selectedCategory]);
 
   // Stats
   const totalProducts = allProducts.length;
@@ -114,11 +148,14 @@ export default function StockPage() {
   const allInventories = useMemo(
     () =>
       allProducts.flatMap((prod) =>
-        (prod.inventory || []).map((inv: any) => ({
-          ...inv,
-          product: prod,
-          _invId: inv._id,
-        }))
+        (prod.inventory || []).map(
+          (inv) =>
+            ({
+              ...inv,
+              product: prod,
+              _invId: inv._id,
+            } as SelectedInventory)
+        )
       ),
     [allProducts]
   );
@@ -127,7 +164,7 @@ export default function StockPage() {
   const isInventorySelected = (invId: string) =>
     selectedInventories.some((inv) => inv._invId === invId);
 
-  const handleInventorySelect = (inv: any, checked: boolean) => {
+  const handleInventorySelect = (inv: SelectedInventory, checked: boolean) => {
     setSelectedInventories((prev) =>
       checked ? [...prev, inv] : prev.filter((i) => i._invId !== inv._invId)
     );
@@ -139,6 +176,32 @@ export default function StockPage() {
     } else {
       setSelectedInventories([]);
     }
+  };
+
+  // Export as Excel handler
+  const handleExportExcel = () => {
+    if (!allInventories.length) {
+      toast.error("No inventory to export.");
+      return;
+    }
+    // Prepare data for Excel
+    const data = allInventories.map((inv) => ({
+      "Product Name": inv.product.name,
+      Category: inv.product.category,
+      Type: inv.product.type,
+      GSM: inv.product.gsm,
+      Length: inv.item_length,
+      Width: inv.item_width,
+      Unit: inv.item_lw_unit,
+      "Weight (kg)": inv.weight,
+      Quantity: inv.quantity,
+      Status: inv.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+    XLSX.writeFile(wb, "inventory_export.xlsx");
+    toast.success("Inventory exported as Excel file.");
   };
 
   // Quote form submit
@@ -153,6 +216,7 @@ export default function StockPage() {
       !quoteForm.company.trim() ||
       selectedInventories.length === 0
     ) {
+      toast.error("Please fill all fields and select at least one item.");
       setQuoteError("Please fill all fields and select at least one item.");
       return;
     }
@@ -162,13 +226,15 @@ export default function StockPage() {
         ...quoteForm,
         items: selectedInventories,
       });
-      setQuoteSuccess(
-        "Quote request submitted! Our team will contact you soon."
-      );
+      const msg = "Quote request submitted! Our team will contact you soon.";
+      toast.success(msg);
+      setQuoteSuccess(msg);
+      setGlobalSuccess(msg);
       setQuoteForm({ name: "", phone: "", email: "", company: "" });
       setSelectedInventories([]);
       setQuoteDialogOpen(false);
-    } catch (err: any) {
+    } catch {
+      toast.error("Failed to send quote request. Please try again.");
       setQuoteError("Failed to send quote request. Please try again.");
     }
     setQuoteSubmitting(false);
@@ -186,12 +252,15 @@ export default function StockPage() {
       !enquiryForm.company.trim() ||
       !enquiryForm.message.trim()
     ) {
+      toast.error("Please fill all fields.");
       setEnquiryError("Please fill all fields.");
       return;
     }
     setEnquirySubmitting(true);
     try {
-      await sendEnquiry(enquiryForm);
+      // Use the backend API to create a lead (enquiry)
+      await createEnquiryLead(enquiryForm);
+      toast.success("Enquiry submitted! Our team will contact you soon.");
       setEnquirySuccess("Enquiry submitted! Our team will contact you soon.");
       setEnquiryForm({
         name: "",
@@ -201,7 +270,8 @@ export default function StockPage() {
         message: "",
       });
       setEnquiryDialogOpen(false);
-    } catch (err: any) {
+    } catch {
+      toast.error("Failed to send enquiry. Please try again.");
       setEnquiryError("Failed to send enquiry. Please try again.");
     }
     setEnquirySubmitting(false);
@@ -234,6 +304,32 @@ export default function StockPage() {
           </div>
         </div>
       </section>
+
+      {/* Success banner after quote submission */}
+      {globalSuccess && !quoteDialogOpen && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="rounded-md bg-green-50 border border-green-200 p-4 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700 text-sm">
+                ✓
+              </span>
+              <div>
+                <p className="text-green-800 font-medium">{globalSuccess}</p>
+                <p className="text-sm text-green-700">
+                  We'll reach out shortly with your quote.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setGlobalSuccess(null)}
+              className="text-green-700 hover:text-green-900 text-sm font-medium"
+              aria-label="Dismiss success"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <section className="py-8">
@@ -290,43 +386,20 @@ export default function StockPage() {
         </div>
       </section>
 
-      {/* Filters and Search */}
+      {/* Filters and Search (search only) */}
       <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row gap-4 items-center">
-                <div className="relative flex-1">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-4">
+                <div className="relative w-full md:flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <Input
                     placeholder="Search products by name or category..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-600">Filter by:</span>
-                  <div className="flex gap-2">
-                    {categoryNames.map((category) => (
-                      <Button
-                        key={category}
-                        variant={
-                          selectedCategory === category ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => setSelectedCategory(category)}
-                        className={
-                          selectedCategory === category
-                            ? "bg-green-600 hover:bg-green-700"
-                            : ""
-                        }
-                      >
-                        {category}
-                      </Button>
-                    ))}
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -334,12 +407,12 @@ export default function StockPage() {
         </div>
       </section>
 
-      {/* Inventory Table */}
+      {/* Inventory Table - Responsive */}
       <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <span>Available Inventory ({allInventories.length} items)</span>
                 <Badge
                   variant="outline"
@@ -350,60 +423,72 @@ export default function StockPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4 flex items-center gap-4">
-                <Checkbox
-                  checked={
-                    selectedInventories.length === allInventories.length &&
-                    allInventories.length > 0
-                  }
-                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                  id="select-all"
-                />
-                <Label htmlFor="select-all" className="cursor-pointer">
-                  Select All
-                </Label>
-                <Button
-                  size="sm"
-                  className="ml-auto"
-                  disabled={selectedInventories.length === 0}
-                  onClick={() => setQuoteDialogOpen(true)}
-                >
-                  Request Quote ({selectedInventories.length})
-                </Button>
+              <div className="mb-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Checkbox
+                    checked={
+                      selectedInventories.length === allInventories.length &&
+                      allInventories.length > 0
+                    }
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    id="select-all"
+                  />
+                  <Label htmlFor="select-all" className="cursor-pointer">
+                    Select All
+                  </Label>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto justify-end ml-auto">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                    onClick={handleExportExcel}
+                  >
+                    <Download className="w-4 h-4 text-white" />
+                    Export as Excel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={selectedInventories.length === 0}
+                    onClick={() => setQuoteDialogOpen(true)}
+                  >
+                    Request Quote ({selectedInventories.length})
+                  </Button>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto rounded-md border border-gray-200">
+                <table className="w-full min-w-[700px] text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
+                    <tr className="border-b border-gray-200 bg-gray-50">
                       <th></th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Product
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Category
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Type
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         GSM
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Length
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Width
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Unit
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Weight (kg)
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Quantity
                       </th>
-                      <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-900">
                         Status
                       </th>
                     </tr>
@@ -414,7 +499,7 @@ export default function StockPage() {
                         key={inv._invId}
                         className="border-b border-gray-100 hover:bg-gray-50"
                       >
-                        <td className="py-4 px-2">
+                        <td className="py-3 px-2">
                           <Checkbox
                             checked={isInventorySelected(inv._invId)}
                             onCheckedChange={(checked) =>
@@ -422,28 +507,28 @@ export default function StockPage() {
                             }
                           />
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-2">
                           <div className="font-medium text-gray-900">
                             {inv.product.name}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-2">
                           <Badge variant="outline" className="text-xs">
                             {inv.product.category}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-2">
                           <Badge variant="secondary" className="text-xs">
                             {inv.product.type}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">{inv.product.gsm}</td>
-                        <td className="py-4 px-4">{inv.item_length}</td>
-                        <td className="py-4 px-4">{inv.item_width}</td>
-                        <td className="py-4 px-4">{inv.item_lw_unit}</td>
-                        <td className="py-4 px-4">{inv.weight}</td>
-                        <td className="py-4 px-4">{inv.quantity}</td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-2">{inv.product.gsm}</td>
+                        <td className="py-3 px-2">{inv.item_length}</td>
+                        <td className="py-3 px-2">{inv.item_width}</td>
+                        <td className="py-3 px-2">{inv.item_lw_unit}</td>
+                        <td className="py-3 px-2">{inv.weight}</td>
+                        <td className="py-3 px-2">{inv.quantity}</td>
+                        <td className="py-3 px-2">
                           <Badge
                             variant={
                               inv.status === "active" ? "default" : "secondary"
@@ -478,72 +563,133 @@ export default function StockPage() {
         </div>
       </section>
 
-      {/* Request Quote Dialog */}
+      {/* Request Quote Dialog - Responsive Table */}
       <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-full sm:max-w-2xl p-2 sm:p-6">
           <DialogHeader>
             <DialogTitle>Request Quote</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleQuoteSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Helper text */}
+            <p className="text-sm text-gray-600 -mt-2">
+              Please share your contact details and review your selected items
+              below.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>Name</Label>
+                <Label className="mb-2 block">Name</Label>
                 <Input
                   value={quoteForm.name}
                   onChange={(e) =>
                     setQuoteForm((f) => ({ ...f, name: e.target.value }))
                   }
+                  placeholder="e.g., Priya Sharma"
                   required
                   autoComplete="name"
                 />
               </div>
               <div>
-                <Label>Phone Number</Label>
+                <Label className="mb-2 block">Phone Number</Label>
                 <Input
+                  type="tel"
                   value={quoteForm.phone}
                   onChange={(e) =>
                     setQuoteForm((f) => ({ ...f, phone: e.target.value }))
                   }
+                  placeholder="e.g., +91 98765 43210"
                   required
                   autoComplete="tel"
                 />
               </div>
               <div>
-                <Label>Email</Label>
+                <Label className="mb-2 block">Email</Label>
                 <Input
                   type="email"
                   value={quoteForm.email}
                   onChange={(e) =>
                     setQuoteForm((f) => ({ ...f, email: e.target.value }))
                   }
+                  placeholder="e.g., priya@company.com"
                   required
                   autoComplete="email"
                 />
               </div>
               <div>
-                <Label>Company Name</Label>
+                <Label className="mb-2 block">Company Name</Label>
                 <Input
                   value={quoteForm.company}
                   onChange={(e) =>
                     setQuoteForm((f) => ({ ...f, company: e.target.value }))
                   }
+                  placeholder="e.g., GreenLeaf Papers Pvt. Ltd."
                   required
                   autoComplete="organization"
                 />
               </div>
             </div>
+
+            {/* Selected items table - scrollable and responsive */}
             <div>
-              <Label>Selected Items</Label>
-              <ul className="list-disc ml-6 text-sm max-h-32 overflow-y-auto">
-                {selectedInventories.map((inv) => (
-                  <li key={inv._invId}>
-                    {inv.product.name} ({inv.product.type},{" "}
-                    {inv.product.category}) - {inv.weight}kg, Qty:{" "}
-                    {inv.quantity}
-                  </li>
-                ))}
-              </ul>
+              <Label className="mb-2 block">Selected Items</Label>
+              {selectedInventories.length > 0 ? (
+                <div className="mt-2 border border-gray-200 rounded-md overflow-x-auto w-full">
+                  <div className="min-w-[500px]">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            Product
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            GSM
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            Type
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            Category
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            Weight (kg)
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">
+                            Qty
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedInventories.map((inv) => (
+                          <tr
+                            key={inv._invId}
+                            className="border-t border-gray-100"
+                          >
+                            <td className="px-3 py-2 text-gray-900">
+                              {inv.product.name}
+                            </td>
+                            <td className="px-3 py-2">{inv.product.gsm}</td>
+                            <td className="px-3 py-2 capitalize">
+                              {inv.product.type}
+                            </td>
+                            <td className="px-3 py-2">
+                              {inv.product.category}
+                            </td>
+                            <td className="px-3 py-2">{inv.weight}</td>
+                            <td className="px-3 py-2">{inv.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mt-1">
+                  No items selected. Go back and choose inventory items to
+                  quote.
+                </p>
+              )}
             </div>
+
             {quoteError && (
               <div className="text-red-500 text-sm">{quoteError}</div>
             )}
@@ -572,7 +718,7 @@ export default function StockPage() {
           <form onSubmit={handleEnquirySubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Name</Label>
+                <Label className="mb-2 block">Name</Label>
                 <Input
                   value={enquiryForm.name}
                   onChange={(e) =>
@@ -583,7 +729,7 @@ export default function StockPage() {
                 />
               </div>
               <div>
-                <Label>Phone Number</Label>
+                <Label className="mb-2 block">Phone Number</Label>
                 <Input
                   value={enquiryForm.phone}
                   onChange={(e) =>
@@ -594,7 +740,7 @@ export default function StockPage() {
                 />
               </div>
               <div>
-                <Label>Email</Label>
+                <Label className="mb-2 block">Email</Label>
                 <Input
                   type="email"
                   value={enquiryForm.email}
@@ -606,7 +752,7 @@ export default function StockPage() {
                 />
               </div>
               <div>
-                <Label>Company Name</Label>
+                <Label className="mb-2 block">Company Name</Label>
                 <Input
                   value={enquiryForm.company}
                   onChange={(e) =>
@@ -618,16 +764,15 @@ export default function StockPage() {
               </div>
             </div>
             <div>
-              <Label>Message</Label>
-              <Input
-                as="textarea"
+              <Label className="mb-2 block">Message</Label>
+              <textarea
                 value={enquiryForm.message}
                 onChange={(e) =>
                   setEnquiryForm((f) => ({ ...f, message: e.target.value }))
                 }
                 placeholder="Type your enquiry here..."
                 required
-                className="min-h-[80px]"
+                className="min-h-[100px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
               />
             </div>
             {enquiryError && (
